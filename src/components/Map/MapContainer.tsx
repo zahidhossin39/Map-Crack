@@ -5,7 +5,6 @@ import {
   Map,
   useMap,
   useMapsLibrary,
-  MapMouseEvent,
 } from '@vis.gl/react-google-maps';
 import { BusinessPlace, SearchCenter, CategoryKey, MapTheme, ExploreMode } from '@/types/business';
 import { CATEGORIES } from '@/lib/constants';
@@ -410,10 +409,13 @@ const MapController: React.FC<MapContainerProps> = ({
 
   // Click on map to drop a new pin
   const handleMapClick = useCallback(
-    async (e: MapMouseEvent) => {
+    // Registered via map.addListener, so this is the raw Google Maps event (e.latLng),
+    // not the @vis.gl wrapper event (e.detail.latLng).
+    async (e: google.maps.MapMouseEvent) => {
       if (exploreMode === 'roam') return;
-      if (!e.detail.latLng) return;
-      const { lat, lng } = e.detail.latLng;
+      if (!e.latLng) return;
+      const lat = e.latLng.lat();
+      const lng = e.latLng.lng();
 
       let address = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
 
@@ -536,7 +538,7 @@ const MapController: React.FC<MapContainerProps> = ({
   );
 };
 
-const MapEventListener: React.FC<{ onMapClick: (e: MapMouseEvent) => void }> = ({
+const MapEventListener: React.FC<{ onMapClick: (e: google.maps.MapMouseEvent) => void }> = ({
   onMapClick,
 }) => {
   const map = useMap();
