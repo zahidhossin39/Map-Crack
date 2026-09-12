@@ -114,7 +114,6 @@ export const PindropLeadsDrawer: React.FC<PindropLeadsDrawerProps> = ({
           businesses.map((b) => {
             const leadStatus = leadStatuses[b.id] || 'none';
             const visual = getBusinessPinVisuals(b, leadStatus);
-            const isOpportunity = visual.category === 'no_website' || visual.category === 'social_page_only';
             const isSelected = selectedBusinessId === b.id;
 
             return (

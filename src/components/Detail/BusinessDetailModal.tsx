@@ -45,7 +45,6 @@ export const BusinessDetailModal: React.FC<BusinessDetailModalProps> = ({
 
   const isNoWebsite = !business.hasWebsite || !business.websiteURI || business.websiteURI.trim() === '';
   const isSocial = !isNoWebsite && isSocialPageOnly(business.websiteURI);
-  const isOpportunity = isNoWebsite || isSocial;
 
   const handleCopy = (text: string, fieldName: string) => {
     navigator.clipboard.writeText(text);
