@@ -1,18 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isValidBusinessPlace } from '@/lib/businessValidation';
+import { resolveServerKey } from '@/lib/serverApiKey';
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const { query, lat, lng, radius, apiKey } = body;
 
-    const key = apiKey || process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+    const { key, reason } = resolveServerKey(req, apiKey);
 
     if (!key) {
-      return NextResponse.json(
-        { error: 'Google Maps API Key is required.' },
-        { status: 400 }
-      );
+      return reason === 'cross-origin'
+        ? NextResponse.json({ error: 'Cross-origin requests are not allowed.' }, { status: 403 })
+        : NextResponse.json({ error: 'Google Maps API Key is required.' }, { status: 400 });
     }
 
     if (!query || !query.trim()) {
@@ -96,7 +96,7 @@ export async function POST(req: NextRequest) {
       const lngCoord = p.location?.longitude ?? 0;
 
       const photos = p.photos?.map((ph: any) => ({
-        url: `https://places.googleapis.com/v1/${ph.name}/media?maxWidthPx=800&key=${key}`,
+        url: `/api/places/photo?name=${encodeURIComponent(ph.name)}&w=800`,
         authorAttributions: ph.authorAttributions,
       })) || [];
 

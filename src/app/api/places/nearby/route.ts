@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isValidBusinessPlace } from '@/lib/businessValidation';
+import { resolveServerKey } from '@/lib/serverApiKey';
 
 const DEFAULT_COMMERCIAL_TYPES = [
   'restaurant',
@@ -24,7 +25,7 @@ const DEFAULT_COMMERCIAL_TYPES = [
   'pharmacy',
 ];
 
-function formatPlaces(rawPlaces: any[], key: string) {
+function formatPlaces(rawPlaces: any[]) {
   return rawPlaces
     .map((p: any) => {
       const website = p.websiteUri?.trim();
@@ -35,7 +36,7 @@ function formatPlaces(rawPlaces: any[], key: string) {
 
       const photos =
         p.photos?.map((ph: any) => ({
-          url: `https://places.googleapis.com/v1/${ph.name}/media?maxWidthPx=800&key=${key}`,
+          url: `/api/places/photo?name=${encodeURIComponent(ph.name)}&w=800`,
           authorAttributions: ph.authorAttributions,
         })) || [];
 
@@ -88,13 +89,12 @@ export async function POST(req: NextRequest) {
       apiKey,
     } = body;
 
-    const key = apiKey || process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+    const { key, reason } = resolveServerKey(req, apiKey);
 
     if (!key) {
-      return NextResponse.json(
-        { error: 'Google Maps API Key is required.' },
-        { status: 400 }
-      );
+      return reason === 'cross-origin'
+        ? NextResponse.json({ error: 'Cross-origin requests are not allowed.' }, { status: 403 })
+        : NextResponse.json({ error: 'Google Maps API Key is required.' }, { status: 400 });
     }
 
     if (lat === undefined || lng === undefined) {
@@ -148,6 +148,19 @@ export async function POST(req: NextRequest) {
     }
 
     let quotaExceeded = false;
+    let lastError: string | null = null;
+
+    const readError = async (res: Response, label: string) => {
+      const body = await res.text();
+      let message = body;
+      try {
+        message = JSON.parse(body)?.error?.message || body;
+      } catch {
+        // non-JSON body, keep the raw text
+      }
+      console.error(`${label} failed (${res.status}): ${message}`);
+      return message;
+    };
 
     try {
       const response = await fetch(
@@ -170,10 +183,11 @@ export async function POST(req: NextRequest) {
         if (response.status === 429) {
           quotaExceeded = true;
         }
-        console.warn(`searchNearby status ${response.status}. Trying live searchText...`);
+        lastError = await readError(response, 'searchNearby');
       }
-    } catch (e) {
-      console.warn('searchNearby fetch error, falling back to searchText:', e);
+    } catch (e: any) {
+      lastError = e?.message || 'searchNearby request failed';
+      console.error('searchNearby fetch error, falling back to searchText:', e);
     }
 
     // 2. Second Attempt: If searchNearby hit quota (429) or returned 0, try searchText with locationBias!
@@ -220,25 +234,30 @@ export async function POST(req: NextRequest) {
           if (textResponse.status === 429) {
             quotaExceeded = true;
           }
-          console.warn('searchText returned status: ' + textResponse.status);
+          lastError = await readError(textResponse, 'searchText');
         }
-      } catch (e) {
-        console.warn('searchText fetch error:', e);
+      } catch (e: any) {
+        lastError = e?.message || 'searchText request failed';
+        console.error('searchText fetch error:', e);
       }
     }
 
     // 3. Return verified commercial businesses only (NO fabricated dummy places)
-    const places = formatPlaces(rawPlaces, key);
+    const places = formatPlaces(rawPlaces);
 
-    return NextResponse.json({
-      places,
-      ...(quotaExceeded && places.length === 0
-        ? {
-            warning:
-              'Google Places API daily quota limit reached. You can update your API key in Settings (You tab).',
-          }
-        : {}),
-    });
+    // Distinguish "Google rejected the request" from a genuine zero-result search, so the UI
+    // never reports "no businesses found" when the request was actually broken.
+    let warning: string | undefined;
+    if (places.length === 0) {
+      if (quotaExceeded) {
+        warning =
+          'Google Places API daily quota limit reached. You can update your API key in Settings (You tab).';
+      } else if (lastError) {
+        warning = `Google Places request failed: ${lastError}`;
+      }
+    }
+
+    return NextResponse.json({ places, ...(warning ? { warning } : {}) });
   } catch (error: any) {
     console.error('Nearby API handler error:', error);
     return NextResponse.json(

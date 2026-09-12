@@ -37,12 +37,20 @@ export const SOCIAL_DOMAINS = [
 /**
  * Checks if a business's website URI points to a social page or link-in-bio service
  * instead of an official standalone website.
+ *
+ * Matches on the hostname only. A substring match over the whole URL misclassifies
+ * legitimate sites — 'x.com' would match remax.com/fedex.com, 't.me' would match
+ * restaurant.menu, and any tracking query like ?utm_source=instagram.com would match too.
  */
 export function isSocialPageOnly(url?: string | null): boolean {
   if (!url) return false;
+  const raw = url.trim();
+  if (!raw) return false;
   try {
-    const cleanUrl = url.trim().toLowerCase();
-    return SOCIAL_DOMAINS.some((domain) => cleanUrl.includes(domain));
+    const host = new URL(/^https?:\/\//i.test(raw) ? raw : `https://${raw}`).hostname
+      .toLowerCase()
+      .replace(/^www\./, '');
+    return SOCIAL_DOMAINS.some((domain) => host === domain || host.endsWith(`.${domain}`));
   } catch {
     return false;
   }
