@@ -12,7 +12,7 @@ import { CATEGORIES } from '@/lib/constants';
 import { calculateDistanceMeters } from '@/lib/exportUtils';
 import { RadiusCircle } from '@/components/Map/RadiusCircle';
 import { CustomMarkerLayer } from '@/components/Map/CustomMarkerLayer';
-import { isSocialPageOnly, getAllLeadStatuses } from '@/lib/pindropUtils';
+import { getAllLeadStatuses } from '@/lib/pindropUtils';
 import { isValidBusinessPlace } from '@/lib/businessValidation';
 import { filterBusinesses } from '@/lib/businessFilters';
 import { Loader2, AlertCircle } from 'lucide-react';
