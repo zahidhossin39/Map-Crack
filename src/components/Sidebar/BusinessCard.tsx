@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { BusinessPlace } from '@/types/business';
+import { getBusinessPinVisuals, getLeadStatus } from '@/lib/pindropUtils';
 import {
   Star,
   Sparkles,
@@ -28,7 +29,9 @@ export const BusinessCard: React.FC<BusinessCardProps> = ({
   onSelect,
   onHover,
 }) => {
-  const isOpportunity = !business.hasWebsite;
+  const leadStatus = getLeadStatus(business.id);
+  const visual = getBusinessPinVisuals(business, leadStatus);
+  const isOpportunity = visual.category === 'no_website' || visual.category === 'social_page_only';
 
   const formatDistance = (meters?: number) => {
     if (!meters) return null;
@@ -56,25 +59,17 @@ export const BusinessCard: React.FC<BusinessCardProps> = ({
       {/* Top row: Name and Opportunity / Website Badge */}
       <div className="flex items-start justify-between gap-2.5 mb-1.5">
         <div className="flex-1 min-w-0">
-          <h3 className="font-bold text-sm text-slate-100 group-hover:text-white truncate">
+          <h3 className="font-bold text-sm text-slate-100 group-hover:text-white line-clamp-2 leading-snug">
             {business.name}
           </h3>
-          <p className="text-xs text-slate-400 truncate mt-0.5">
+          <p className="text-xs text-slate-400 line-clamp-1 mt-0.5">
             {business.primaryTypeDisplayName || business.primaryType?.replace(/_/g, ' ') || 'Local Business'}
           </p>
         </div>
 
-        {isOpportunity ? (
-          <div className="shrink-0 flex items-center gap-1 px-2 py-0.5 rounded-full bg-gradient-to-r from-opportunity-500/20 to-amber-500/20 border border-opportunity-500/40 text-opportunity-300 text-[10px] font-extrabold shadow-sm">
-            <Sparkles className="w-3 h-3 text-opportunity-400 animate-pulse" />
-            <span>NO WEBSITE</span>
-          </div>
-        ) : (
-          <div className="shrink-0 flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-800 border border-slate-700 text-slate-400 text-[10px] font-medium">
-            <Globe className="w-3 h-3 text-slate-400" />
-            <span>Website</span>
-          </div>
-        )}
+        <div className={`shrink-0 flex items-center gap-1 px-2 py-0.5 rounded-full border text-[10px] font-extrabold shadow-sm ${visual.badgeClass}`}>
+          <span>{visual.badgeText}</span>
+        </div>
       </div>
 
       {/* Ratings and Distance */}
@@ -103,7 +98,7 @@ export const BusinessCard: React.FC<BusinessCardProps> = ({
       {business.formattedAddress && (
         <div className="flex items-start gap-1.5 text-xs text-slate-400 mb-2">
           <MapPin className="w-3.5 h-3.5 text-slate-500 shrink-0 mt-0.5" />
-          <span className="line-clamp-1">{business.formattedAddress}</span>
+          <span className="line-clamp-2 leading-tight">{business.formattedAddress}</span>
         </div>
       )}
 

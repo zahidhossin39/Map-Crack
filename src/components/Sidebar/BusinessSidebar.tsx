@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { BusinessPlace, SearchCenter } from '@/types/business';
+import { isValidBusinessPlace } from '@/lib/businessValidation';
 import { BusinessCard } from '@/components/Sidebar/BusinessCard';
 import { OpportunityStatsCard } from '@/components/Sidebar/OpportunityStatsCard';
 import { SkeletonCard } from '@/components/Common/SkeletonCard';
@@ -50,10 +51,11 @@ export const BusinessSidebar: React.FC<BusinessSidebarProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [isCollapsed, setIsCollapsed] = useState(false);
 
-  const opportunities = businesses.filter((b) => !b.hasWebsite);
+  const validBusinesses = businesses.filter(isValidBusinessPlace);
+  const opportunities = validBusinesses.filter((b) => !b.hasWebsite);
 
   // Filter based on active tab and search query
-  let filtered = activeTab === 'opportunities' ? opportunities : businesses;
+  let filtered = activeTab === 'opportunities' ? opportunities : validBusinesses;
 
   if (searchQuery.trim()) {
     const q = searchQuery.toLowerCase();
@@ -123,7 +125,7 @@ export const BusinessSidebar: React.FC<BusinessSidebarProps> = ({
 
           {/* Prospecting Stats Card */}
           <OpportunityStatsCard
-            businesses={businesses}
+            businesses={validBusinesses}
             onExportCSV={onExportCSV}
             onCopyClipboard={onCopyClipboard}
             copied={copied}
@@ -139,7 +141,7 @@ export const BusinessSidebar: React.FC<BusinessSidebarProps> = ({
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              All Businesses ({businesses.length})
+              All Businesses ({validBusinesses.length})
             </button>
             <button
               onClick={() => setActiveTab('opportunities')}

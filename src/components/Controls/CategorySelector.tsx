@@ -40,7 +40,7 @@ export const CategorySelector: React.FC<CategorySelectorProps> = ({
     <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1">
       {CATEGORIES.map((cat) => {
         const isSelected = selectedCategory === cat.key;
-        const IconComponent = ICON_MAP[cat.icon] || Grid;
+        const IconComponent = (cat.icon && ICON_MAP[cat.icon]) || Grid;
 
         return (
           <button

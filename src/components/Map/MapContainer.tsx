@@ -7,22 +7,28 @@ import {
   useMapsLibrary,
   MapMouseEvent,
 } from '@vis.gl/react-google-maps';
-import { BusinessPlace, SearchCenter, CategoryKey, MapTheme } from '@/types/business';
+import { BusinessPlace, SearchCenter, CategoryKey, MapTheme, ExploreMode } from '@/types/business';
 import { CATEGORIES } from '@/lib/constants';
 import { calculateDistanceMeters } from '@/lib/exportUtils';
 import { RadiusCircle } from '@/components/Map/RadiusCircle';
-import { RadiusSliderOverlay } from '@/components/Map/RadiusSliderOverlay';
 import { CustomMarkerLayer } from '@/components/Map/CustomMarkerLayer';
+import { isSocialPageOnly, getAllLeadStatuses } from '@/lib/pindropUtils';
+import { matchesAdvancedFilters } from '@/lib/ratingFilterUtils';
+import { isValidBusinessPlace } from '@/lib/businessValidation';
 import { Loader2, AlertCircle } from 'lucide-react';
 
 interface MapContainerProps {
   apiKey: string;
   mapId: string;
   mapTheme: MapTheme;
+  exploreMode?: ExploreMode;
   centerPin: SearchCenter;
   radiusMeters: number;
   selectedCategory: CategoryKey;
   opportunitiesOnly: boolean;
+  socialPageOnly?: boolean;
+  selectedRatingRanges?: string[];
+  selectedReviewCountRanges?: string[];
   selectedBusinessId?: string | null;
   hoveredBusinessId?: string | null;
   onCenterPinChange: (newCenter: SearchCenter) => void;
@@ -37,30 +43,17 @@ interface MapContainerProps {
   tiltAngle: number;
 }
 
-const MapController: React.FC<{
-  apiKey: string;
-  centerPin: SearchCenter;
-  radiusMeters: number;
-  selectedCategory: CategoryKey;
-  opportunitiesOnly: boolean;
-  selectedBusinessId?: string | null;
-  hoveredBusinessId?: string | null;
-  onCenterPinChange: (newCenter: SearchCenter) => void;
-  onRadiusChange: (radius: number) => void;
-  onBusinessesFetched: (businesses: BusinessPlace[]) => void;
-  onBusinessSelect: (business: BusinessPlace) => void;
-  onBusinessHover: (id: string | null) => void;
-  isSearching: boolean;
-  setIsSearching: (val: boolean) => void;
-  searchTriggerCount: number;
-  zoomLevel: number;
-  tiltAngle: number;
-}> = ({
+const MapController: React.FC<MapContainerProps> = ({
   apiKey,
+  mapTheme,
+  exploreMode = 'pin',
   centerPin,
   radiusMeters,
   selectedCategory,
   opportunitiesOnly,
+  socialPageOnly = false,
+  selectedRatingRanges = [],
+  selectedReviewCountRanges = [],
   selectedBusinessId,
   hoveredBusinessId,
   onCenterPinChange,
@@ -78,8 +71,39 @@ const MapController: React.FC<{
   const geocodingLib = useMapsLibrary('geocoding');
 
   const [businesses, setBusinesses] = useState<BusinessPlace[]>([]);
+  const [leadStatuses, setLeadStatuses] = useState<Record<string, any>>({});
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isAbove50km, setIsAbove50km] = useState<boolean>(false);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Stable references for callbacks to prevent infinite re-render cycles
+  const onBusinessesFetchedRef = useRef(onBusinessesFetched);
+  onBusinessesFetchedRef.current = onBusinessesFetched;
+
+  const setIsSearchingRef = useRef(setIsSearching);
+  setIsSearchingRef.current = setIsSearching;
+
+  // Deduplication tracking to prevent duplicate in-flight or identical searches
+  const lastSearchKeyRef = useRef<string>('');
+  const isSearchRunningRef = useRef<boolean>(false);
+  const lastRoamKeyRef = useRef<string>('');
+  const isRoamRunningRef = useRef<boolean>(false);
+
+  // Sync lead pipeline statuses reactively across components
+  useEffect(() => {
+    setLeadStatuses(getAllLeadStatuses());
+
+    const handleStatusSync = () => {
+      setLeadStatuses(getAllLeadStatuses());
+    };
+
+    window.addEventListener('pindrop_lead_status_changed', handleStatusSync);
+    window.addEventListener('storage', handleStatusSync);
+    return () => {
+      window.removeEventListener('pindrop_lead_status_changed', handleStatusSync);
+      window.removeEventListener('storage', handleStatusSync);
+    };
+  }, []);
 
   // Pan map smoothly when centerPin changes
   useEffect(() => {
@@ -102,9 +126,89 @@ const MapController: React.FC<{
     }
   }, [map, tiltAngle]);
 
+  // Dynamically update Google Maps colorScheme when theme changes
+  useEffect(() => {
+    if (map) {
+      map.setOptions({
+        colorScheme: mapTheme === 'dark' ? 'DARK' : 'LIGHT',
+      });
+    }
+  }, [map, mapTheme]);
+
+  // Monitor map zoom & bounds to determine if visible scale is above 50km
+  useEffect(() => {
+    if (!map) return;
+
+    const updateScale = () => {
+      const bounds = map.getBounds();
+      const center = map.getCenter();
+      const zoom = map.getZoom();
+
+      if (bounds && center) {
+        const ne = bounds.getNorthEast();
+        // Calculate distance from center to northeast corner (diagonal)
+        const distCorner = calculateDistanceMeters(
+          center.lat(),
+          center.lng(),
+          ne.lat(),
+          ne.lng()
+        );
+        // Distance from center to north edge (half-height)
+        const distVertical = calculateDistanceMeters(
+          center.lat(),
+          center.lng(),
+          ne.lat(),
+          center.lng()
+        );
+        // Distance from center to east edge (half-width)
+        const distHorizontal = calculateDistanceMeters(
+          center.lat(),
+          center.lng(),
+          center.lat(),
+          ne.lng()
+        );
+
+        // Effective visible radius of viewport (average half-dimension)
+        const visibleRadius = (distVertical + distHorizontal) / 2;
+
+        // Viewport scale exceeds 50km (50,000 meters)
+        // Zoom <= 10 also corresponds to > 50km visible scale on standard displays
+        const above =
+          visibleRadius > 50000 ||
+          distCorner > 65000 ||
+          (typeof zoom === 'number' && zoom <= 10);
+
+        setIsAbove50km((prev) => (prev !== above ? above : prev));
+      } else if (typeof zoom === 'number') {
+        const above = zoom <= 10;
+        setIsAbove50km((prev) => (prev !== above ? above : prev));
+      }
+    };
+
+    updateScale();
+
+    const zoomListener = map.addListener('zoom_changed', updateScale);
+    const boundsListener = map.addListener('bounds_changed', updateScale);
+    const idleListener = map.addListener('idle', updateScale);
+
+    return () => {
+      google.maps.event.removeListener(zoomListener);
+      google.maps.event.removeListener(boundsListener);
+      google.maps.event.removeListener(idleListener);
+    };
+  }, [map]);
+
   // Execute Nearby Search via live Places API (New) endpoint
   const executeSearch = useCallback(async () => {
-    setIsSearching(true);
+    if (isSearchRunningRef.current) return;
+
+    const searchKey = `${centerPin.lat.toFixed(5)}_${centerPin.lng.toFixed(5)}_${radiusMeters}_${selectedCategory}_${apiKey}_${searchTriggerCount}`;
+    if (lastSearchKeyRef.current === searchKey) {
+      return;
+    }
+
+    isSearchRunningRef.current = true;
+    setIsSearchingRef.current(true);
     setErrorMessage(null);
 
     try {
@@ -119,6 +223,8 @@ const MapController: React.FC<{
           lng: centerPin.lng,
           radius: radiusMeters,
           categoryTypes,
+          categoryKey: selectedCategory,
+          categoryLabel: categoryObj?.label,
           apiKey,
         }),
       });
@@ -129,7 +235,13 @@ const MapController: React.FC<{
         throw new Error(data.error || 'Failed to fetch places');
       }
 
-      const rawPlaces: BusinessPlace[] = data.places || [];
+      if (data.warning) {
+        setErrorMessage(data.warning);
+      }
+
+      lastSearchKeyRef.current = searchKey;
+
+      const rawPlaces: BusinessPlace[] = (data.places || []).filter(isValidBusinessPlace);
 
       // Calculate exact distance from center pin
       const mappedBusinesses = rawPlaces.map((p) => {
@@ -153,14 +265,15 @@ const MapController: React.FC<{
       });
 
       setBusinesses(mappedBusinesses);
-      onBusinessesFetched(mappedBusinesses);
+      onBusinessesFetchedRef.current(mappedBusinesses);
     } catch (err: any) {
       console.error('Live Places API search error:', err);
       setErrorMessage(err?.message || 'Search failed. Please check your API key.');
       setBusinesses([]);
-      onBusinessesFetched([]);
+      onBusinessesFetchedRef.current([]);
     } finally {
-      setIsSearching(false);
+      isSearchRunningRef.current = false;
+      setIsSearchingRef.current(false);
     }
   }, [
     centerPin.lat,
@@ -168,30 +281,131 @@ const MapController: React.FC<{
     radiusMeters,
     selectedCategory,
     apiKey,
-    setIsSearching,
-    onBusinessesFetched,
+    searchTriggerCount,
   ]);
 
-  // Debounced search trigger on pin, radius, category, or manual refresh
+  // Execute Roam Search across visible viewport bounds
+  const executeRoamSearch = useCallback(async () => {
+    if (!map) return;
+    if (isAbove50km) return; // Prevent unnecessary roam queries when zoomed out beyond 50km
+    if (isRoamRunningRef.current) return;
+
+    const center = map.getCenter();
+    if (!center) return;
+
+    const lat = center.lat();
+    const lng = center.lng();
+
+    // Compute approximate radius from viewport bounds
+    let radius = 2000;
+    const bounds = map.getBounds();
+    if (bounds) {
+      const ne = bounds.getNorthEast();
+      const dist = calculateDistanceMeters(lat, lng, ne.lat(), ne.lng());
+      radius = Math.min(Math.max(Math.round(dist * 0.8), 500), 5000);
+    }
+
+    const roamKey = `${lat.toFixed(3)}_${lng.toFixed(3)}_${radius}_${selectedCategory}_${apiKey}`;
+    if (lastRoamKeyRef.current === roamKey) {
+      return;
+    }
+
+    isRoamRunningRef.current = true;
+    setIsSearchingRef.current(true);
+    setErrorMessage(null);
+
+    try {
+      const categoryObj = CATEGORIES.find((c) => c.key === selectedCategory);
+      const categoryTypes = categoryObj?.types || [];
+
+      const res = await fetch('/api/places/nearby', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          lat,
+          lng,
+          radius,
+          categoryTypes,
+          categoryKey: selectedCategory,
+          categoryLabel: categoryObj?.label,
+          apiKey,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to fetch places');
+      }
+
+      if (data.warning) {
+        setErrorMessage(data.warning);
+      }
+
+      lastRoamKeyRef.current = roamKey;
+
+      const rawPlaces: BusinessPlace[] = (data.places || []).filter(isValidBusinessPlace);
+      const mappedBusinesses = rawPlaces.map((p) => ({
+        ...p,
+        distanceMeters: calculateDistanceMeters(lat, lng, p.location.lat, p.location.lng),
+      }));
+
+      setBusinesses((prev) => {
+        const validPrev = prev.filter(isValidBusinessPlace);
+        const existingIds = new Set(validPrev.map((b) => b.id));
+        const newUnique = mappedBusinesses.filter((b) => !existingIds.has(b.id));
+        const merged = [...validPrev, ...newUnique];
+        onBusinessesFetchedRef.current(merged);
+        return merged;
+      });
+    } catch (err: any) {
+      console.error('Roam Places search error:', err);
+    } finally {
+      isRoamRunningRef.current = false;
+      setIsSearchingRef.current(false);
+    }
+  }, [map, selectedCategory, apiKey, isAbove50km]);
+
+  // When in Roam Mode, listen to map idle (pan/zoom stop) to discover places
   useEffect(() => {
+    if (!map || exploreMode !== 'roam') return;
+
+    let timer: NodeJS.Timeout;
+    const idleListener = map.addListener('idle', () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        executeRoamSearch();
+      }, 750);
+    });
+
+    return () => {
+      clearTimeout(timer);
+      google.maps.event.removeListener(idleListener);
+    };
+  }, [map, exploreMode, executeRoamSearch]);
+
+  // Debounced search trigger on pin, radius, category, or manual refresh (Pin mode only)
+  useEffect(() => {
+    if (exploreMode === 'roam') return;
+
     if (searchTimeoutRef.current) {
       clearTimeout(searchTimeoutRef.current);
     }
 
     searchTimeoutRef.current = setTimeout(() => {
       executeSearch();
-    }, 350);
+    }, 400);
 
     return () => {
       if (searchTimeoutRef.current) {
         clearTimeout(searchTimeoutRef.current);
       }
     };
-  }, [executeSearch, searchTriggerCount]);
+  }, [exploreMode, executeSearch]);
 
   // Click on map to drop a new pin
   const handleMapClick = useCallback(
     async (e: MapMouseEvent) => {
+      if (exploreMode === 'roam') return;
       if (!e.detail.latLng) return;
       const { lat, lng } = e.detail.latLng;
 
@@ -215,44 +429,97 @@ const MapController: React.FC<{
         address,
       });
     },
-    [geocodingLib, onCenterPinChange]
+    [geocodingLib, onCenterPinChange, exploreMode]
   );
 
-  const displayedBusinesses = opportunitiesOnly
-    ? businesses.filter((b) => !b.hasWebsite)
-    : businesses;
+  const displayedBusinesses = businesses.filter((b) => {
+    // 0. Filter out dummy generated names, unnamed locations, and road addresses
+    if (!isValidBusinessPlace(b)) return false;
+
+    // 1. Opportunities only (No website)
+    if (opportunitiesOnly) {
+      if (b.hasWebsite && b.websiteURI && b.websiteURI.trim() !== '') return false;
+    }
+
+    // 2. Social page only
+    if (socialPageOnly) {
+      if (!isSocialPageOnly(b.websiteURI)) return false;
+    }
+
+    // 3. Client-side category matching for instant responsiveness
+    if (selectedCategory && selectedCategory !== 'all') {
+      const categoryObj = CATEGORIES.find((c) => c.key === selectedCategory);
+      if (categoryObj && categoryObj.types.length > 0) {
+        const matchesType = categoryObj.types.some(
+          (t) => b.primaryType === t || b.types?.includes(t)
+        );
+        const matchesName = b.name.toLowerCase().includes(selectedCategory.replace(/_/g, ' '));
+        if (!matchesType && !matchesName) return false;
+      }
+    }
+
+    // 4. Advanced rating & review count filters
+    if (!matchesAdvancedFilters(b, selectedRatingRanges, selectedReviewCountRanges)) {
+      return false;
+    }
+
+    return true;
+  });
 
   return (
     <>
       <MapEventListener onMapClick={handleMapClick} />
 
-      {/* Emerald Green Radius Circle (Image 2) */}
-      <RadiusCircle
-        center={{ lat: centerPin.lat, lng: centerPin.lng }}
-        radiusMeters={radiusMeters}
-      />
+      {/* Emerald Green Radius Circle (Only in Pin Mode) */}
+      {exploreMode !== 'roam' && (
+        <RadiusCircle
+          center={{ lat: centerPin.lat, lng: centerPin.lng }}
+          radiusMeters={radiusMeters}
+        />
+      )}
 
-      {/* Interactive Search Radius Slider Overlay (Image 2) */}
-      <RadiusSliderOverlay
-        radiusMeters={radiusMeters}
-        onRadiusChange={onRadiusChange}
-      />
-
-      {/* Custom Marker Layer with Orange (No Website) & Green Pins */}
+      {/* Custom Marker Layer with 6 Pin Types (Hidden when zoomed out > 50km for peak performance) */}
       <CustomMarkerLayer
         centerPin={centerPin}
-        businesses={displayedBusinesses}
+        businesses={isAbove50km ? [] : displayedBusinesses}
         selectedBusinessId={selectedBusinessId}
         hoveredBusinessId={hoveredBusinessId}
         onBusinessSelect={onBusinessSelect}
         onBusinessHover={onBusinessHover}
+        exploreMode={exploreMode}
+        leadStatuses={leadStatuses}
       />
+
+      {/* 50km Zoom Scale Notice & Performance Booster */}
+      {isAbove50km && (
+        <div className="absolute top-20 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2.5 bg-slate-900/90 text-amber-300 border border-amber-500/40 px-4 py-2 rounded-full shadow-2xl backdrop-blur-xl text-xs font-semibold animate-in fade-in slide-in-from-top-2 duration-200">
+          <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse shrink-0" />
+          <span>Zoom in closer (&lt; 50km) to view business pins</span>
+          <button
+            onClick={() => {
+              if (map) {
+                map.setZoom(13);
+                if (exploreMode !== 'roam') {
+                  map.panTo({ lat: centerPin.lat, lng: centerPin.lng });
+                }
+              }
+            }}
+            className="ml-1 px-2.5 py-0.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 hover:text-white border border-amber-500/40 text-[11px] font-bold transition-colors cursor-pointer"
+          >
+            Zoom In
+          </button>
+        </div>
+      )}
 
       {/* Scanning status indicator */}
       {isSearching && (
         <div className="absolute top-20 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 bg-slate-900/90 text-emerald-400 border border-emerald-500/40 px-4 py-2 rounded-full shadow-2xl backdrop-blur-xl text-xs font-bold animate-pulse">
           <Loader2 className="w-4 h-4 animate-spin text-emerald-400" />
-          <span>Scanning for local businesses...</span>
+          <span>
+            {exploreMode === 'roam'
+              ? 'Free Roam: Discovering visible businesses...'
+              : 'Scanning for local businesses...'}
+          </span>
         </div>
       )}
 
@@ -298,7 +565,7 @@ export const MapContainer: React.FC<MapContainerProps> = (props) => {
   const { mapId, mapTheme, centerPin } = props;
 
   return (
-    <div className="relative w-full h-full min-h-screen bg-[#1b2030] overflow-hidden">
+    <div className={`relative w-full h-full min-h-screen ${mapTheme === 'dark' ? 'bg-[#1b2030]' : 'bg-[#e5e3df]'} overflow-hidden`}>
       <Map
         mapId={mapId || 'DEMO_MAP_ID'}
         colorScheme={mapTheme === 'dark' ? 'DARK' : 'LIGHT'}

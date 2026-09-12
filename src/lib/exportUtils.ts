@@ -1,4 +1,5 @@
 import { BusinessPlace } from '@/types/business';
+import { isValidBusinessPlace } from '@/lib/businessValidation';
 
 /**
  * Exports the list of businesses to a clean CSV file
@@ -7,7 +8,8 @@ export function exportBusinessesToCSV(
   businesses: BusinessPlace[],
   filename: string = 'local_business_opportunities.csv'
 ) {
-  if (!businesses.length) return;
+  const validBusinesses = businesses.filter(isValidBusinessPlace);
+  if (!validBusinesses.length) return;
 
   const headers = [
     'Name',
@@ -29,7 +31,7 @@ export function exportBusinessesToCSV(
     return `"${str}"`;
   };
 
-  const rows = businesses.map((b) => [
+  const rows = validBusinesses.map((b) => [
     escapeCSV(b.name),
     escapeCSV(b.hasWebsite ? 'Yes' : 'NO - Opportunity'),
     escapeCSV(b.websiteURI || ''),
@@ -62,9 +64,10 @@ export function exportBusinessesToCSV(
 export async function copyOpportunitiesToClipboard(
   opportunities: BusinessPlace[]
 ): Promise<boolean> {
-  if (!opportunities.length) return false;
+  const validOpportunities = opportunities.filter(isValidBusinessPlace);
+  if (!validOpportunities.length) return false;
 
-  const lines = opportunities.map((b, i) => {
+  const lines = validOpportunities.map((b, i) => {
     const parts = [
       `${i + 1}. ${b.name}`,
       `   📍 Address: ${b.formattedAddress || 'N/A'}`,

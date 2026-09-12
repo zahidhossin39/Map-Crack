@@ -1,17 +1,12 @@
 import type { Metadata, Viewport } from 'next';
-import { Inter, Outfit } from 'next/font/google';
+import { Open_Sans } from 'next/font/google';
 import './globals.css';
 
-const inter = Inter({
+const openSans = Open_Sans({
   subsets: ['latin'],
-  variable: '--font-inter',
+  variable: '--font-open-sans',
   display: 'swap',
-});
-
-const outfit = Outfit({
-  subsets: ['latin'],
-  variable: '--font-outfit',
-  display: 'swap',
+  weight: ['300', '400', '500', '600', '700', '800'],
 });
 
 export const viewport: Viewport = {
@@ -42,8 +37,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${inter.variable} ${outfit.variable} dark`}>
-      <body className="bg-slate-950 text-slate-100 min-h-screen antialiased selection:bg-brand-500 selection:text-white">
+    <html lang="en" className={`${openSans.variable} font-sans dark`}>
+      <body className="bg-slate-950 text-slate-100 min-h-screen antialiased selection:bg-brand-500 selection:text-white font-sans">
         {children}
       </body>
     </html>

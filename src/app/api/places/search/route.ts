@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { isValidBusinessPlace } from '@/lib/businessValidation';
 
 export async function POST(req: NextRequest) {
   try {
@@ -129,7 +130,7 @@ export async function POST(req: NextRequest) {
       };
     });
 
-    // Determine target center for the search
+    // Determine target center for the search (can be a city, locality, address, or business)
     let targetCenter = null;
     if (places.length > 0) {
       targetCenter = {
@@ -139,7 +140,10 @@ export async function POST(req: NextRequest) {
       };
     }
 
-    return NextResponse.json({ places, targetCenter });
+    // Filter places so suggestions only list valid commercial businesses
+    const validPlaces = places.filter(isValidBusinessPlace);
+
+    return NextResponse.json({ places: validPlaces, targetCenter });
   } catch (error: any) {
     console.error('Text Search API handler error:', error);
     return NextResponse.json(

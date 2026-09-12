@@ -44,8 +44,8 @@ module.exports = {
         }
       },
       fontFamily: {
-        sans: ['var(--font-inter)', 'system-ui', 'sans-serif'],
-        display: ['var(--font-outfit)', 'system-ui', 'sans-serif'],
+        sans: ['var(--font-open-sans)', 'Open Sans', 'system-ui', 'sans-serif'],
+        display: ['var(--font-open-sans)', 'Open Sans', 'system-ui', 'sans-serif'],
       },
       boxShadow: {
         'glass': '0 8px 32px 0 rgba(0, 0, 0, 0.25)',

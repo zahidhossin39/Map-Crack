@@ -19,18 +19,18 @@ export const RadiusSliderOverlay: React.FC<RadiusSliderOverlayProps> = ({
   };
 
   return (
-    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 translate-y-12 z-20 pointer-events-auto w-72 sm:w-80 select-none">
-      <div className="flex items-center justify-between mb-1.5 px-1">
-        <span className="text-[11px] font-extrabold uppercase tracking-wider text-emerald-300 drop-shadow-md">
+    <div className="flex flex-col justify-center bg-slate-950/85 border border-emerald-500/40 shadow-2xl backdrop-blur-md px-3.5 py-1.5 rounded-2xl w-52 sm:w-64 select-none pointer-events-auto">
+      <div className="flex items-center justify-between px-0.5 mb-1">
+        <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-300 drop-shadow-sm">
           SEARCH RADIUS
         </span>
-        <span className="px-2.5 py-0.5 rounded-full bg-emerald-500 text-white font-bold text-xs shadow-md shadow-emerald-600/30">
+        <span className="px-2 py-0.5 rounded-full bg-emerald-500 text-white font-bold text-[10px] shadow-sm shadow-emerald-600/30">
           {miles} mi ({radiusMeters < 1000 ? `${radiusMeters}m` : `${(radiusMeters / 1000).toFixed(1)}km`})
         </span>
       </div>
 
       {/* Slider Track and Thumb */}
-      <div className="relative flex items-center bg-slate-950/70 p-2 rounded-2xl backdrop-blur-md border border-emerald-500/40 shadow-xl">
+      <div className="relative flex items-center px-0.5">
         <input
           type="range"
           min="250"
@@ -38,7 +38,7 @@ export const RadiusSliderOverlay: React.FC<RadiusSliderOverlayProps> = ({
           step="50"
           value={radiusMeters}
           onChange={handleChange}
-          className="w-full h-1.5 bg-white/40 rounded-lg appearance-none cursor-pointer accent-white focus:outline-none"
+          className="w-full h-1.5 bg-white/30 rounded-lg appearance-none cursor-pointer accent-emerald-400 focus:outline-none"
         />
       </div>
     </div>

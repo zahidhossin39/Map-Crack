@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BusinessPlace } from '@/types/business';
+import { isSocialPageOnly, getLeadStatus, setLeadStatus, LeadStatus } from '@/lib/pindropUtils';
 import {
   X,
   Sparkles,
@@ -29,10 +30,25 @@ export const BusinessDetailModal: React.FC<BusinessDetailModalProps> = ({
   onClose,
 }) => {
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [currentStatus, setCurrentStatus] = useState<LeadStatus>('none');
+
+  useEffect(() => {
+    if (business) {
+      setCurrentStatus(getLeadStatus(business.id));
+    }
+  }, [business]);
+
+  const handleStatusChange = (newStatus: LeadStatus) => {
+    if (!business) return;
+    setCurrentStatus(newStatus);
+    setLeadStatus(business.id, newStatus);
+  };
 
   if (!business) return null;
 
-  const isOpportunity = !business.hasWebsite;
+  const isNoWebsite = !business.hasWebsite || !business.websiteURI || business.websiteURI.trim() === '';
+  const isSocial = !isNoWebsite && isSocialPageOnly(business.websiteURI);
+  const isOpportunity = isNoWebsite || isSocial;
 
   const handleCopy = (text: string, fieldName: string) => {
     navigator.clipboard.writeText(text);
@@ -90,10 +106,15 @@ export const BusinessDetailModal: React.FC<BusinessDetailModalProps> = ({
 
           {/* Status Overlay Badge */}
           <div className="absolute bottom-3 left-4 right-4 flex items-center justify-between">
-            {isOpportunity ? (
+            {isNoWebsite ? (
               <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-opportunity-600/90 text-white font-extrabold text-xs shadow-glow-opportunity backdrop-blur-md border border-opportunity-400">
                 <Sparkles className="w-3.5 h-3.5 fill-amber-200" />
                 <span>HIGH OPPORTUNITY: NO WEBSITE</span>
+              </div>
+            ) : isSocial ? (
+              <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-pink-600/90 text-white font-extrabold text-xs shadow-lg backdrop-blur-md border border-pink-400">
+                <Sparkles className="w-3.5 h-3.5 fill-pink-200" />
+                <span>OPPORTUNITY: SOCIAL PAGE ONLY</span>
               </div>
             ) : (
               <a
@@ -130,18 +151,84 @@ export const BusinessDetailModal: React.FC<BusinessDetailModalProps> = ({
             </p>
           </div>
 
+          {/* Lead Pipeline Status (Map Key Actions) */}
+          <div className="p-3.5 rounded-2xl bg-slate-950/70 border border-slate-800 space-y-2.5">
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-bold text-slate-200">Pipeline Status</span>
+              <span className="text-[10px] text-slate-400">Updates pin color on map</span>
+            </div>
+            <div className="grid grid-cols-4 gap-1.5">
+              <button
+                onClick={() => handleStatusChange('none')}
+                className={`py-2 px-2 rounded-xl text-[11px] font-bold border transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                  currentStatus === 'none'
+                    ? 'bg-slate-800 text-white border-slate-600 ring-1 ring-white/20'
+                    : 'bg-slate-900/60 text-slate-400 border-slate-800 hover:bg-slate-800 hover:text-white'
+                }`}
+              >
+                Default
+              </button>
+
+              <button
+                onClick={() => handleStatusChange('talking')}
+                className={`py-2 px-2 rounded-xl text-[11px] font-bold border transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                  currentStatus === 'talking'
+                    ? 'bg-blue-600 text-white border-blue-400 shadow-lg shadow-blue-500/30'
+                    : 'bg-blue-950/30 text-blue-300 border-blue-900/50 hover:bg-blue-900/40'
+                }`}
+              >
+                <span className="w-2 h-2 rounded-full bg-blue-400 shadow-sm" />
+                Talking
+              </button>
+
+              <button
+                onClick={() => handleStatusChange('client')}
+                className={`py-2 px-2 rounded-xl text-[11px] font-bold border transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                  currentStatus === 'client'
+                    ? 'bg-purple-600 text-white border-purple-400 shadow-lg shadow-purple-500/30'
+                    : 'bg-purple-950/30 text-purple-300 border-purple-900/50 hover:bg-purple-900/40'
+                }`}
+              >
+                <span className="w-2 h-2 rounded-full bg-purple-400 shadow-sm" />
+                Client
+              </button>
+
+              <button
+                onClick={() => handleStatusChange('nogo')}
+                className={`py-2 px-2 rounded-xl text-[11px] font-bold border transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                  currentStatus === 'nogo'
+                    ? 'bg-rose-600 text-white border-rose-400 shadow-lg shadow-rose-500/30'
+                    : 'bg-rose-950/30 text-rose-300 border-rose-900/50 hover:bg-rose-900/40'
+                }`}
+              >
+                <span className="w-2 h-2 rounded-full bg-red-400 shadow-sm" />
+                No-go
+              </button>
+            </div>
+          </div>
+
           {/* Opportunity Pitch Banner */}
-          {isOpportunity && (
+          {isNoWebsite ? (
             <div className="p-4 rounded-2xl bg-opportunity-950/50 border border-opportunity-500/40 text-xs space-y-2">
               <div className="flex items-center gap-2 text-opportunity-300 font-bold">
                 <Sparkles className="w-4 h-4 text-opportunity-400" />
-                <span>Pitch Prospect Opportunity</span>
+                <span>Pitch Prospect Opportunity (No Website)</span>
               </div>
               <p className="text-slate-300 text-xs leading-relaxed">
                 This business is actively listed on Google Maps with customer reviews, but has no official website URL linked. Ideal target for custom web design, SEO, or online ordering solutions.
               </p>
             </div>
-          )}
+          ) : isSocial ? (
+            <div className="p-4 rounded-2xl bg-pink-950/40 border border-pink-500/40 text-xs space-y-2">
+              <div className="flex items-center gap-2 text-pink-300 font-bold">
+                <Sparkles className="w-4 h-4 text-pink-400" />
+                <span>Pitch Prospect Opportunity (Social Page Only)</span>
+              </div>
+              <p className="text-slate-300 text-xs leading-relaxed">
+                This business relies only on an Instagram, Facebook, or link-in-bio page. Without a professional custom domain and website, they lack brand control, SEO discovery, and conversion optimization. Pitch them a custom website!
+              </p>
+            </div>
+          ) : null}
 
           {/* Key Details List */}
           <div className="space-y-3 bg-slate-950/60 p-4 rounded-2xl border border-slate-800">
@@ -201,7 +288,7 @@ export const BusinessDetailModal: React.FC<BusinessDetailModalProps> = ({
                     href={business.websiteURI}
                     target="_blank"
                     rel="noreferrer"
-                    className="text-blue-400 hover:text-blue-300 hover:underline truncate max-w-[260px]"
+                    className="text-blue-400 hover:text-blue-300 hover:underline break-all"
                   >
                     {business.websiteURI}
                   </a>

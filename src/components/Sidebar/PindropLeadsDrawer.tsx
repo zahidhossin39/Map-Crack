@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { BusinessPlace } from '@/types/business';
+import { isSocialPageOnly, getLeadStatus, getBusinessPinVisuals } from '@/lib/pindropUtils';
 import { X, Download, Copy, Check, Sparkles, ExternalLink, Phone, Star, MapPin, Globe } from 'lucide-react';
 
 interface PindropLeadsDrawerProps {
@@ -27,7 +28,9 @@ export const PindropLeadsDrawer: React.FC<PindropLeadsDrawerProps> = ({
 }) => {
   if (!isOpen) return null;
 
-  const opportunities = businesses.filter((b) => !b.hasWebsite);
+  const noWebsiteList = businesses.filter((b) => !b.hasWebsite || !b.websiteURI);
+  const socialOnlyList = businesses.filter((b) => isSocialPageOnly(b.websiteURI));
+  const opportunities = [...noWebsiteList, ...socialOnlyList];
 
   return (
     <aside className="fixed inset-y-0 left-0 z-40 w-full sm:w-96 bg-white shadow-2xl border-r border-slate-200 flex flex-col animate-in slide-in-from-left duration-300">
@@ -39,7 +42,7 @@ export const PindropLeadsDrawer: React.FC<PindropLeadsDrawerProps> = ({
             <h3 className="font-bold text-slate-900 text-base">Prospect Leads</h3>
           </div>
           <p className="text-xs text-slate-500 mt-0.5">
-            {opportunities.length} no-website opportunities ({businesses.length} total)
+            {noWebsiteList.length} no website • {socialOnlyList.length} social only ({businesses.length} total)
           </p>
         </div>
 
@@ -95,7 +98,9 @@ export const PindropLeadsDrawer: React.FC<PindropLeadsDrawerProps> = ({
           </div>
         ) : (
           businesses.map((b) => {
-            const isOpportunity = !b.hasWebsite;
+            const leadStatus = getLeadStatus(b.id);
+            const visual = getBusinessPinVisuals(b, leadStatus);
+            const isOpportunity = visual.category === 'no_website' || visual.category === 'social_page_only';
             const isSelected = selectedBusinessId === b.id;
 
             return (
@@ -105,29 +110,29 @@ export const PindropLeadsDrawer: React.FC<PindropLeadsDrawerProps> = ({
                 className={`pt-2.5 p-2.5 rounded-2xl cursor-pointer transition-all border ${
                   isSelected
                     ? 'bg-emerald-50/60 border-emerald-300 ring-2 ring-emerald-500/20'
-                    : isOpportunity
+                    : visual.category === 'no_website'
                     ? 'bg-amber-50/40 border-amber-200/80 hover:bg-amber-50'
+                    : visual.category === 'social_page_only'
+                    ? 'bg-pink-50/40 border-pink-200/80 hover:bg-pink-50'
                     : 'bg-white border-slate-100 hover:bg-slate-50'
                 }`}
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5">
-                      <h4 className="text-xs sm:text-sm font-bold text-slate-900 truncate">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <h4 className="text-xs sm:text-sm font-bold text-slate-900 leading-snug break-words">
                         {b.name}
                       </h4>
-                      {isOpportunity && (
-                        <span className="shrink-0 px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-800 text-[10px] font-extrabold tracking-wide">
-                          OPPORTUNITY
-                        </span>
-                      )}
+                      <span className={`shrink-0 px-1.5 py-0.5 rounded-md text-[10px] font-extrabold tracking-wide border ${visual.badgeClass}`}>
+                        {visual.badgeText}
+                      </span>
                     </div>
 
-                    <p className="text-[11px] text-slate-500 truncate mt-0.5">
+                    <p className="text-[11px] text-slate-500 mt-1 leading-snug break-words">
                       {b.formattedAddress}
                     </p>
 
-                    <div className="flex items-center gap-3 mt-1.5 text-[11px] text-slate-600">
+                    <div className="flex items-center gap-3 mt-1.5 text-[11px] text-slate-600 flex-wrap">
                       {b.rating && (
                         <span className="flex items-center gap-1 font-semibold text-amber-600">
                           <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
@@ -147,8 +152,8 @@ export const PindropLeadsDrawer: React.FC<PindropLeadsDrawerProps> = ({
                       )}
 
                       {b.nationalPhoneNumber && (
-                        <span className="hidden sm:inline text-slate-500 truncate">
-                          {b.nationalPhoneNumber}
+                        <span className="text-emerald-700 font-medium font-mono text-[11px]">
+                          📞 {b.nationalPhoneNumber}
                         </span>
                       )}
                     </div>
