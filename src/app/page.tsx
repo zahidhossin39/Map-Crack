@@ -3,11 +3,10 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { APIProvider } from '@vis.gl/react-google-maps';
 import { BusinessPlace, SearchCenter, CategoryKey, MapTheme, ExploreMode } from '@/types/business';
-import { DEFAULT_CENTER, CATEGORIES } from '@/lib/constants';
+import { DEFAULT_CENTER } from '@/lib/constants';
 import { exportBusinessesToCSV, copyOpportunitiesToClipboard } from '@/lib/exportUtils';
-import { isSocialPageOnly } from '@/lib/pindropUtils';
-import { matchesAdvancedFilters } from '@/lib/ratingFilterUtils';
 import { isValidBusinessPlace } from '@/lib/businessValidation';
+import { filterBusinesses } from '@/lib/businessFilters';
 import { PindropTopBar } from '@/components/Search/PindropTopBar';
 import { PindropBottomBar } from '@/components/Controls/PindropBottomBar';
 import { PindropLeadsDrawer } from '@/components/Sidebar/PindropLeadsDrawer';
@@ -34,7 +33,7 @@ export default function Home() {
 
   // Map view controls
   const [zoomLevel, setZoomLevel] = useState<number>(15);
-  const [tiltAngle, setTiltAngle] = useState<number>(45);
+  const tiltAngle = 45;
 
   // Business state
   const [businesses, setBusinesses] = useState<BusinessPlace[]>([]);
@@ -128,49 +127,26 @@ export default function Home() {
     setSelectedReviewCountRanges([]);
   };
 
-  // Filtered businesses based on presence, category, and advanced ratings/review counts
-  const filteredBusinesses = useMemo(() => {
-    return businesses.filter((b) => {
-      // 0. Filter out dummy generated names, unnamed locations, and road addresses
-      if (!isValidBusinessPlace(b)) return false;
-
-      // 1. Opportunities only (No website)
-      if (opportunitiesOnly) {
-        if (b.hasWebsite && b.websiteURI && b.websiteURI.trim() !== '') return false;
-      }
-
-      // 2. Social page only
-      if (socialPageOnly) {
-        if (!isSocialPageOnly(b.websiteURI)) return false;
-      }
-
-      // 3. Client-side category matching for instant responsiveness
-      if (selectedCategory && selectedCategory !== 'all') {
-        const categoryObj = CATEGORIES.find((c) => c.key === selectedCategory);
-        if (categoryObj && categoryObj.types.length > 0) {
-          const matchesType = categoryObj.types.some(
-            (t) => b.primaryType === t || b.types?.includes(t)
-          );
-          const matchesName = b.name.toLowerCase().includes(selectedCategory.replace(/_/g, ' '));
-          if (!matchesType && !matchesName) return false;
-        }
-      }
-
-      // 4. Advanced rating & review count filters
-      if (!matchesAdvancedFilters(b, selectedRatingRanges, selectedReviewCountRanges)) {
-        return false;
-      }
-
-      return true;
-    });
-  }, [
-    businesses,
-    opportunitiesOnly,
-    socialPageOnly,
-    selectedCategory,
-    selectedRatingRanges,
-    selectedReviewCountRanges,
-  ]);
+  // Filtered businesses based on presence, category, and advanced ratings/review counts.
+  // Shares filterBusinesses with the map so pins and the leads list can never disagree.
+  const filteredBusinesses = useMemo(
+    () =>
+      filterBusinesses(businesses, {
+        opportunitiesOnly,
+        socialPageOnly,
+        selectedCategory,
+        selectedRatingRanges,
+        selectedReviewCountRanges,
+      }),
+    [
+      businesses,
+      opportunitiesOnly,
+      socialPageOnly,
+      selectedCategory,
+      selectedRatingRanges,
+      selectedReviewCountRanges,
+    ]
+  );
 
   // Export handlers
   const handleExportCSV = () => {
@@ -252,7 +228,7 @@ export default function Home() {
           onToggleReviewCountRange={handleToggleReviewCountRange}
           onClearAdvancedFilters={handleClearAdvancedFilters}
           totalFilteredCount={filteredBusinesses.length}
-          onExportCSV={() => setActiveNavTab('leads')}
+          onExportCSV={handleExportCSV}
           onZoomIn={() => setZoomLevel((z) => Math.min(20, z + 1))}
           onZoomOut={() => setZoomLevel((z) => Math.max(3, z - 1))}
           apiKey={apiKey}
@@ -291,8 +267,6 @@ export default function Home() {
           onTabChange={handleNavTabChange}
           onSearchThisSpot={handleSearchThisSpot}
           isSearching={isSearching}
-          onTiltUp={() => setTiltAngle((t) => Math.min(67.5, t + 15))}
-          onTiltDown={() => setTiltAngle((t) => Math.max(0, t - 15))}
           onOpenSettings={() => setShowSettings(true)}
           radiusMeters={radiusMeters}
           onRadiusChange={setRadiusMeters}

@@ -1,8 +1,8 @@
 'use client';
 
-import React from 'react';
-import { BusinessPlace } from '@/types/business';
-import { isSocialPageOnly, getLeadStatus, getBusinessPinVisuals } from '@/lib/pindropUtils';
+import React, { useState, useEffect } from 'react';
+import { BusinessPlace, LeadStatus } from '@/types/business';
+import { isSocialPageOnly, getAllLeadStatuses, getBusinessPinVisuals } from '@/lib/pindropUtils';
 import { X, Download, Copy, Check, Sparkles, ExternalLink, Phone, Star, MapPin, Globe } from 'lucide-react';
 
 interface PindropLeadsDrawerProps {
@@ -26,6 +26,20 @@ export const PindropLeadsDrawer: React.FC<PindropLeadsDrawerProps> = ({
   onCopyClipboard,
   copied,
 }) => {
+  const [leadStatuses, setLeadStatuses] = useState<Record<string, LeadStatus>>({});
+
+  // Keep pipeline badges in sync with changes made elsewhere (e.g. the detail modal).
+  useEffect(() => {
+    const sync = () => setLeadStatuses(getAllLeadStatuses());
+    sync();
+    window.addEventListener('pindrop_lead_status_changed', sync);
+    window.addEventListener('storage', sync);
+    return () => {
+      window.removeEventListener('pindrop_lead_status_changed', sync);
+      window.removeEventListener('storage', sync);
+    };
+  }, []);
+
   if (!isOpen) return null;
 
   const noWebsiteList = businesses.filter((b) => !b.hasWebsite || !b.websiteURI);
@@ -98,7 +112,7 @@ export const PindropLeadsDrawer: React.FC<PindropLeadsDrawerProps> = ({
           </div>
         ) : (
           businesses.map((b) => {
-            const leadStatus = getLeadStatus(b.id);
+            const leadStatus = leadStatuses[b.id] || 'none';
             const visual = getBusinessPinVisuals(b, leadStatus);
             const isOpportunity = visual.category === 'no_website' || visual.category === 'social_page_only';
             const isSelected = selectedBusinessId === b.id;

@@ -30,21 +30,21 @@ export const RATING_FILTER_OPTIONS: RatingFilterOption[] = [
     label: '4.0 – 4.5',
     badge: 'High rated',
     minRating: 4.0,
-    maxRating: 4.59,
+    maxRating: 4.5999,
   },
   {
     key: '3.0-3.9',
     label: '3.0 – 3.9',
     badge: 'Average',
     minRating: 3.0,
-    maxRating: 3.99,
+    maxRating: 3.9999,
   },
   {
     key: 'under-3.0',
     label: 'Under 3.0',
     badge: 'Below 3.0',
     minRating: 0.01,
-    maxRating: 2.99,
+    maxRating: 2.9999,
   },
   {
     key: 'unrated',
@@ -98,7 +98,7 @@ export const REVIEW_COUNT_FILTER_OPTIONS: ReviewCountFilterOption[] = [
  * Checks if a business's rating satisfies the selected rating ranges.
  * If no rating ranges are selected, returns true (no filter applied).
  */
-export function matchesRatingFilter(
+function matchesRatingFilter(
   rating: number | null | undefined,
   selectedRanges: string[]
 ): boolean {
@@ -127,7 +127,7 @@ export function matchesRatingFilter(
  * Checks if a business's review count satisfies the selected review count ranges.
  * If no review count ranges are selected, returns true (no filter applied).
  */
-export function matchesReviewCountFilter(
+function matchesReviewCountFilter(
   userRatingCount: number | null | undefined,
   selectedRanges: string[]
 ): boolean {

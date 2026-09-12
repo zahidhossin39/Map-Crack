@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   Map,
   useMap,
@@ -13,9 +13,11 @@ import { calculateDistanceMeters } from '@/lib/exportUtils';
 import { RadiusCircle } from '@/components/Map/RadiusCircle';
 import { CustomMarkerLayer } from '@/components/Map/CustomMarkerLayer';
 import { isSocialPageOnly, getAllLeadStatuses } from '@/lib/pindropUtils';
-import { matchesAdvancedFilters } from '@/lib/ratingFilterUtils';
 import { isValidBusinessPlace } from '@/lib/businessValidation';
+import { filterBusinesses } from '@/lib/businessFilters';
 import { Loader2, AlertCircle } from 'lucide-react';
+
+const MAX_ROAM_BUSINESSES = 500;
 
 interface MapContainerProps {
   apiKey: string;
@@ -71,6 +73,10 @@ const MapController: React.FC<MapContainerProps> = ({
   const geocodingLib = useMapsLibrary('geocoding');
 
   const [businesses, setBusinesses] = useState<BusinessPlace[]>([]);
+  // Lets roam read the current list without a state updater, so the fetch callback below
+  // stays outside setBusinesses (updaters must be pure; React may run them twice).
+  const businessesRef = useRef<BusinessPlace[]>([]);
+  businessesRef.current = businesses;
   const [leadStatuses, setLeadStatuses] = useState<Record<string, any>>({});
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isAbove50km, setIsAbove50km] = useState<boolean>(false);
@@ -305,7 +311,8 @@ const MapController: React.FC<MapContainerProps> = ({
       radius = Math.min(Math.max(Math.round(dist * 0.8), 500), 5000);
     }
 
-    const roamKey = `${lat.toFixed(3)}_${lng.toFixed(3)}_${radius}_${selectedCategory}_${apiKey}`;
+    // 2dp ~= 1.1km. At 3dp (~110m) almost every pan fired another billable Places request.
+    const roamKey = `${lat.toFixed(2)}_${lng.toFixed(2)}_${radius}_${selectedCategory}_${apiKey}`;
     if (lastRoamKeyRef.current === roamKey) {
       return;
     }
@@ -349,14 +356,15 @@ const MapController: React.FC<MapContainerProps> = ({
         distanceMeters: calculateDistanceMeters(lat, lng, p.location.lat, p.location.lng),
       }));
 
-      setBusinesses((prev) => {
-        const validPrev = prev.filter(isValidBusinessPlace);
-        const existingIds = new Set(validPrev.map((b) => b.id));
-        const newUnique = mappedBusinesses.filter((b) => !existingIds.has(b.id));
-        const merged = [...validPrev, ...newUnique];
-        onBusinessesFetchedRef.current(merged);
-        return merged;
-      });
+      const validPrev = businessesRef.current.filter(isValidBusinessPlace);
+      const existingIds = new Set(validPrev.map((b) => b.id));
+      const newUnique = mappedBusinesses.filter((b) => !existingIds.has(b.id));
+      // ponytail: roam accumulates across pans, so drop the oldest beyond the cap. Swap for
+      // "keep nearest to current centre" if users complain about pins vanishing behind them.
+      const merged = [...validPrev, ...newUnique].slice(-MAX_ROAM_BUSINESSES);
+
+      setBusinesses(merged);
+      onBusinessesFetchedRef.current(merged);
     } catch (err: any) {
       console.error('Roam Places search error:', err);
     } finally {
@@ -432,39 +440,24 @@ const MapController: React.FC<MapContainerProps> = ({
     [geocodingLib, onCenterPinChange, exploreMode]
   );
 
-  const displayedBusinesses = businesses.filter((b) => {
-    // 0. Filter out dummy generated names, unnamed locations, and road addresses
-    if (!isValidBusinessPlace(b)) return false;
-
-    // 1. Opportunities only (No website)
-    if (opportunitiesOnly) {
-      if (b.hasWebsite && b.websiteURI && b.websiteURI.trim() !== '') return false;
-    }
-
-    // 2. Social page only
-    if (socialPageOnly) {
-      if (!isSocialPageOnly(b.websiteURI)) return false;
-    }
-
-    // 3. Client-side category matching for instant responsiveness
-    if (selectedCategory && selectedCategory !== 'all') {
-      const categoryObj = CATEGORIES.find((c) => c.key === selectedCategory);
-      if (categoryObj && categoryObj.types.length > 0) {
-        const matchesType = categoryObj.types.some(
-          (t) => b.primaryType === t || b.types?.includes(t)
-        );
-        const matchesName = b.name.toLowerCase().includes(selectedCategory.replace(/_/g, ' '));
-        if (!matchesType && !matchesName) return false;
-      }
-    }
-
-    // 4. Advanced rating & review count filters
-    if (!matchesAdvancedFilters(b, selectedRatingRanges, selectedReviewCountRanges)) {
-      return false;
-    }
-
-    return true;
-  });
+  const displayedBusinesses = useMemo(
+    () =>
+      filterBusinesses(businesses, {
+        opportunitiesOnly,
+        socialPageOnly,
+        selectedCategory,
+        selectedRatingRanges,
+        selectedReviewCountRanges,
+      }),
+    [
+      businesses,
+      opportunitiesOnly,
+      socialPageOnly,
+      selectedCategory,
+      selectedRatingRanges,
+      selectedReviewCountRanges,
+    ]
+  );
 
   return (
     <>

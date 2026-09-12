@@ -21,8 +21,6 @@ interface PindropBottomBarProps {
   onTabChange: (tab: 'drop' | 'leads' | 'sites' | 'you') => void;
   onSearchThisSpot: () => void;
   isSearching: boolean;
-  onTiltUp?: () => void;
-  onTiltDown?: () => void;
   onOpenSettings?: () => void;
   radiusMeters?: number;
   onRadiusChange?: (radius: number) => void;
@@ -37,8 +35,6 @@ export const PindropBottomBar: React.FC<PindropBottomBarProps> = ({
   onTabChange,
   onSearchThisSpot,
   isSearching,
-  onTiltUp,
-  onTiltDown,
   onOpenSettings,
   radiusMeters,
   onRadiusChange,

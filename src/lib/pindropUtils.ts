@@ -127,9 +127,18 @@ export function getAllLeadStatuses(): Record<string, LeadStatus> {
  */
 export function setLeadStatus(id: string, status: LeadStatus): void {
   if (typeof window === 'undefined') return;
+
+  // Parsing is isolated so corrupt stored JSON resets to {} instead of throwing past the
+  // write below, which would leave status changes silently failing forever.
+  let parsed: Record<string, LeadStatus> = {};
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    const parsed = raw ? JSON.parse(raw) : {};
+    if (raw) parsed = JSON.parse(raw);
+  } catch {
+    parsed = {};
+  }
+
+  try {
     if (status === 'none') {
       delete parsed[id];
     } else {

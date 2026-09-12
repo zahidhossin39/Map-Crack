@@ -79,10 +79,3 @@ export type MapTheme = 'dark' | 'light' | 'silver' | 'night';
 
 export type ExploreMode = 'pin' | 'roam';
 
-export interface SearchFilter {
-  category: CategoryKey;
-  radiusMeters: number;
-  opportunitiesOnly: boolean; // No website only
-  searchQuery?: string;
-  sortBy: 'opportunities_first' | 'rating' | 'reviews' | 'distance';
-}

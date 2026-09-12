@@ -4,7 +4,7 @@ import { BusinessPlace } from '@/types/business';
  * List of Google Places types that represent physical roads, geographic borders,
  * political zones, or non-commercial address structures rather than active commercial businesses.
  */
-export const NON_BUSINESS_TYPES = new Set([
+const NON_BUSINESS_TYPES = new Set([
   'route',
   'street_address',
   'intersection',

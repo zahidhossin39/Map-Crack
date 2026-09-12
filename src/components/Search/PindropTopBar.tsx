@@ -119,6 +119,10 @@ export const PindropTopBar: React.FC<PindropTopBarProps> = ({
       return;
     }
 
+    // Guards against an earlier request resolving after a later one and overwriting it
+    // with stale suggestions for a query the user has already moved on from.
+    let cancelled = false;
+
     const timer = setTimeout(async () => {
       setIsLoading(true);
       try {
@@ -131,18 +135,22 @@ export const PindropTopBar: React.FC<PindropTopBarProps> = ({
           }),
         });
         const data = await res.json();
-        if (data.places && data.places.length > 0) {
-          setSuggestions(data.places.slice(0, 7));
-          setIsOpen(true);
-        }
+        if (cancelled) return;
+
+        const places = data.places || [];
+        setSuggestions(places.slice(0, 7));
+        if (places.length > 0) setIsOpen(true);
       } catch (err) {
-        console.warn('Place search error:', err);
+        if (!cancelled) console.warn('Place search error:', err);
       } finally {
-        setIsLoading(false);
+        if (!cancelled) setIsLoading(false);
       }
     }, 300);
 
-    return () => clearTimeout(timer);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
   }, [input, apiKey]);
 
   const handleSelectPlace = (place: any) => {
