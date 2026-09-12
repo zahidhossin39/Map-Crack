@@ -3,7 +3,7 @@
 import React from 'react';
 import { AdvancedMarker } from '@vis.gl/react-google-maps';
 import { BusinessPlace, ExploreMode, LeadStatus } from '@/types/business';
-import { getBusinessPinVisuals, isSocialPageOnly } from '@/lib/pindropUtils';
+import { getBusinessPinVisuals } from '@/lib/pindropUtils';
 
 interface CustomMarkerLayerProps {
   centerPin: { lat: number; lng: number; address?: string };

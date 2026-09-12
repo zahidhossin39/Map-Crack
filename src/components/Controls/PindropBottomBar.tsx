@@ -10,7 +10,6 @@ import {
   Moon,
   Navigation,
   MessageSquare,
-  Sparkles,
 } from 'lucide-react';
 
 import { MapTheme, ExploreMode } from '@/types/business';

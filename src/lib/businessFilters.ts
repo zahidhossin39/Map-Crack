@@ -4,7 +4,7 @@ import { isSocialPageOnly } from '@/lib/pindropUtils';
 import { matchesAdvancedFilters } from '@/lib/ratingFilterUtils';
 import { isValidBusinessPlace } from '@/lib/businessValidation';
 
-export interface BusinessFilterOptions {
+interface BusinessFilterOptions {
   opportunitiesOnly: boolean;
   socialPageOnly: boolean;
   selectedCategory: CategoryKey;

@@ -181,8 +181,6 @@ export default function Home() {
     }
   };
 
-  const opportunityCount = filteredBusinesses.filter((b) => !b.hasWebsite).length;
-
   return (
     <APIProvider apiKey={apiKey} libraries={['places', 'marker', 'geometry', 'geocoding']}>
       <main className="relative w-screen h-screen overflow-hidden bg-[#1b2030] font-sans">
@@ -199,8 +197,6 @@ export default function Home() {
 
         {/* Top Floating Pindrop Search Bar Header */}
         <PindropTopBar
-          currentAddress={centerPin.address}
-          opportunityCount={opportunityCount}
           onPlaceSelect={(newCenter) => setCenterPin(newCenter)}
           onLocateMe={handleLocateUser}
           isLocating={isLocating}
@@ -250,7 +246,6 @@ export default function Home() {
           selectedBusinessId={selectedBusiness?.id}
           hoveredBusinessId={hoveredBusinessId}
           onCenterPinChange={setCenterPin}
-          onRadiusChange={setRadiusMeters}
           onBusinessesFetched={handleBusinessesFetched}
           onBusinessSelect={setSelectedBusiness}
           onBusinessHover={setHoveredBusinessId}

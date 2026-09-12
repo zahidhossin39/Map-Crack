@@ -28,8 +28,6 @@ import {
 } from '@/lib/ratingFilterUtils';
 
 interface PindropTopBarProps {
-  currentAddress?: string;
-  opportunityCount: number;
   onPlaceSelect: (center: SearchCenter) => void;
   onLocateMe: () => void;
   isLocating: boolean;
@@ -52,8 +50,6 @@ interface PindropTopBarProps {
 }
 
 export const PindropTopBar: React.FC<PindropTopBarProps> = ({
-  currentAddress,
-  opportunityCount,
   onPlaceSelect,
   onLocateMe,
   isLocating,

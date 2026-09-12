@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { BusinessPlace, LeadStatus } from '@/types/business';
 import { isSocialPageOnly, getAllLeadStatuses, getBusinessPinVisuals } from '@/lib/pindropUtils';
-import { X, Download, Copy, Check, Sparkles, ExternalLink, Phone, Star, MapPin, Globe } from 'lucide-react';
+import { X, Download, Copy, Check, Sparkles, ExternalLink, Star, MapPin } from 'lucide-react';
 
 interface PindropLeadsDrawerProps {
   isOpen: boolean;

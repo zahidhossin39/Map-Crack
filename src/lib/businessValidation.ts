@@ -63,11 +63,6 @@ const ROAD_OR_ADDRESS_ONLY_PATTERNS = [
 export function isValidBusinessPlace(place: Partial<BusinessPlace> | null | undefined): boolean {
   if (!place) return false;
 
-  // Filter out any generated simulation dummy IDs (e.g. "sim-1234-5")
-  if (typeof place.id === 'string' && place.id.startsWith('sim-')) {
-    return false;
-  }
-
   const name = place.name?.trim() || '';
   if (!name) return false;
 

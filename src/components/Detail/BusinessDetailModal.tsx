@@ -15,9 +15,6 @@ import {
   Navigation,
   Copy,
   Check,
-  Share2,
-  AlertCircle,
-  CheckCircle2,
 } from 'lucide-react';
 
 interface BusinessDetailModalProps {

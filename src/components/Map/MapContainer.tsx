@@ -34,7 +34,6 @@ interface MapContainerProps {
   selectedBusinessId?: string | null;
   hoveredBusinessId?: string | null;
   onCenterPinChange: (newCenter: SearchCenter) => void;
-  onRadiusChange: (radius: number) => void;
   onBusinessesFetched: (businesses: BusinessPlace[]) => void;
   onBusinessSelect: (business: BusinessPlace) => void;
   onBusinessHover: (id: string | null) => void;
@@ -59,7 +58,6 @@ const MapController: React.FC<MapContainerProps> = ({
   selectedBusinessId,
   hoveredBusinessId,
   onCenterPinChange,
-  onRadiusChange,
   onBusinessesFetched,
   onBusinessSelect,
   onBusinessHover,

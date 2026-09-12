@@ -2,7 +2,7 @@ import { BusinessPlace, LeadStatus } from '@/types/business';
 export type { LeadStatus };
 
 // List of social networks, bio link providers, and social platforms
-export const SOCIAL_DOMAINS = [
+const SOCIAL_DOMAINS = [
   'instagram.com',
   'instagr.am',
   'facebook.com',
@@ -56,7 +56,7 @@ export function isSocialPageOnly(url?: string | null): boolean {
   }
 }
 
-export interface MapKeyItem {
+interface MapKeyItem {
   key: string;
   label: string;
   description: string;
@@ -156,7 +156,7 @@ export function setLeadStatus(id: string, status: LeadStatus): void {
   }
 }
 
-export type BusinessPinCategory =
+type BusinessPinCategory =
   | 'no_website'
   | 'social_page_only'
   | 'website'
@@ -164,7 +164,7 @@ export type BusinessPinCategory =
   | 'client'
   | 'nogo';
 
-export interface PinVisualConfig {
+interface PinVisualConfig {
   category: BusinessPinCategory;
   label: string;
   badgeText: string;

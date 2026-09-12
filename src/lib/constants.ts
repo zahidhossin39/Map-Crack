@@ -6,15 +6,6 @@ export const DEFAULT_CENTER = {
   address: 'New York, NY, USA',
 };
 
-export const RADIUS_OPTIONS = [
-  { value: 250, label: '250m', shortLabel: '250m' },
-  { value: 500, label: '500m', shortLabel: '500m' },
-  { value: 750, label: '750m (Default)', shortLabel: '750m' },
-  { value: 1500, label: '1.5 km', shortLabel: '1.5km' },
-  { value: 3000, label: '3 km', shortLabel: '3km' },
-  { value: 5000, label: '5 km', shortLabel: '5km' },
-];
-
 export const CATEGORIES: CategoryOption[] = [
   {
     key: 'barbershop',

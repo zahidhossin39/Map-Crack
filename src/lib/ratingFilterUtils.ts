@@ -1,6 +1,6 @@
 import type { BusinessPlace } from '@/types/business';
 
-export interface RatingFilterOption {
+interface RatingFilterOption {
   key: string;
   label: string;
   badge?: string;
@@ -9,7 +9,7 @@ export interface RatingFilterOption {
   unratedOnly?: boolean;
 }
 
-export interface ReviewCountFilterOption {
+interface ReviewCountFilterOption {
   key: string;
   label: string;
   subtitle: string;
