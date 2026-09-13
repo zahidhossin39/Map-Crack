@@ -12,6 +12,7 @@ import { calculateDistanceMeters } from '@/lib/exportUtils';
 import { RadiusCircle } from '@/components/Map/RadiusCircle';
 import { CustomMarkerLayer } from '@/components/Map/CustomMarkerLayer';
 import { getAllLeadStatuses } from '@/lib/pindropUtils';
+import { getAllSelectedIds, toggleSelected, SELECTION_CHANGED_EVENT } from '@/lib/selection';
 import { isValidBusinessPlace } from '@/lib/businessValidation';
 import { filterBusinesses } from '@/lib/businessFilters';
 import { Loader2, AlertCircle } from 'lucide-react';
@@ -75,6 +76,7 @@ const MapController: React.FC<MapContainerProps> = ({
   const businessesRef = useRef<BusinessPlace[]>([]);
   businessesRef.current = businesses;
   const [leadStatuses, setLeadStatuses] = useState<Record<string, any>>({});
+  const [selectedIds, setSelectedIds] = useState<Record<string, true>>({});
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isAbove50km, setIsAbove50km] = useState<boolean>(false);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -105,6 +107,19 @@ const MapController: React.FC<MapContainerProps> = ({
     return () => {
       window.removeEventListener('pindrop_lead_status_changed', handleStatusSync);
       window.removeEventListener('storage', handleStatusSync);
+    };
+  }, []);
+
+  // Selection is stored independently of pipeline status, so a prospect stays starred
+  // after it becomes Talking or Client.
+  useEffect(() => {
+    const sync = () => setSelectedIds(getAllSelectedIds());
+    sync();
+    window.addEventListener(SELECTION_CHANGED_EVENT, sync);
+    window.addEventListener('storage', sync);
+    return () => {
+      window.removeEventListener(SELECTION_CHANGED_EVENT, sync);
+      window.removeEventListener('storage', sync);
     };
   }, []);
 
@@ -481,6 +496,8 @@ const MapController: React.FC<MapContainerProps> = ({
         onBusinessHover={onBusinessHover}
         exploreMode={exploreMode}
         leadStatuses={leadStatuses}
+        selectedIds={selectedIds}
+        onToggleSelect={(id) => toggleSelected(id)}
       />
 
       {/* 50km Zoom Scale Notice & Performance Booster */}

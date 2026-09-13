@@ -1,5 +1,7 @@
 import { BusinessPlace } from '@/types/business';
 import { isValidBusinessPlace } from '@/lib/businessValidation';
+import { getAllLeadStatuses, isSocialPageOnly, isNoRealDomain, getBuilderFromHost } from '@/lib/pindropUtils';
+import { getAllSelectedIds } from '@/lib/selection';
 
 /**
  * Exports the list of businesses to a clean CSV file
@@ -11,8 +13,22 @@ export function exportBusinessesToCSV(
   const validBusinesses = businesses.filter(isValidBusinessPlace);
   if (!validBusinesses.length) return;
 
+  const statuses = getAllLeadStatuses();
+  const selectedIds = getAllSelectedIds();
+
+  const presenceOf = (b: BusinessPlace) => {
+    if (!b.hasWebsite || !b.websiteURI?.trim()) return 'No website';
+    if (isSocialPageOnly(b.websiteURI)) return 'Social page only';
+    if (isNoRealDomain(b.websiteURI)) return 'No real domain';
+    return 'Website';
+  };
+
   const headers = [
     'Name',
+    'Presence',
+    'Builder',
+    'Selected',
+    'Lead Status',
     'Has Website',
     'Website URL',
     'Phone Number',
@@ -33,6 +49,10 @@ export function exportBusinessesToCSV(
 
   const rows = validBusinesses.map((b) => [
     escapeCSV(b.name),
+    escapeCSV(presenceOf(b)),
+    escapeCSV(getBuilderFromHost(b.websiteURI) || ''),
+    escapeCSV(selectedIds[b.id] ? 'Yes' : ''),
+    escapeCSV(statuses[b.id] || 'none'),
     escapeCSV(b.hasWebsite ? 'Yes' : 'NO - Opportunity'),
     escapeCSV(b.websiteURI || ''),
     escapeCSV(b.nationalPhoneNumber || b.internationalPhoneNumber || ''),

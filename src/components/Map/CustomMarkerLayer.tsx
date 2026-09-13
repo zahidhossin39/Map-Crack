@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { AdvancedMarker } from '@vis.gl/react-google-maps';
+import { Star } from 'lucide-react';
 import { BusinessPlace, ExploreMode, LeadStatus } from '@/types/business';
 import { getBusinessPinVisuals } from '@/lib/pindropUtils';
 
@@ -14,6 +15,8 @@ interface CustomMarkerLayerProps {
   onBusinessHover: (id: string | null) => void;
   exploreMode?: ExploreMode;
   leadStatuses?: Record<string, LeadStatus>;
+  selectedIds?: Record<string, true>;
+  onToggleSelect?: (id: string) => void;
 }
 
 export const CustomMarkerLayer: React.FC<CustomMarkerLayerProps> = ({
@@ -25,6 +28,8 @@ export const CustomMarkerLayer: React.FC<CustomMarkerLayerProps> = ({
   onBusinessHover,
   exploreMode = 'pin',
   leadStatuses,
+  selectedIds,
+  onToggleSelect,
 }) => {
   return (
     <>
@@ -58,6 +63,7 @@ export const CustomMarkerLayer: React.FC<CustomMarkerLayerProps> = ({
         const visual = getBusinessPinVisuals(business, leadStatus);
         const isSelected = selectedBusinessId === business.id;
         const isHovered = hoveredBusinessId === business.id;
+        const isStarred = selectedIds?.[business.id] === true;
 
         // Render dot indicator string (e.g. "●●●●") based on rating
         const ratingDots = business.rating
@@ -115,12 +121,15 @@ export const CustomMarkerLayer: React.FC<CustomMarkerLayerProps> = ({
                 </div>
               </div>
 
-              {/* Rich Floating Hover Card Tooltip (Pindrop Inspection - Solid Opaque Background) */}
+              {/* Hover card. The outer wrapper's pb-3 keeps the 12px gap inside the hovered
+                  element, so the pointer can travel from pin to card without the card
+                  closing out from under it. */}
               {isHovered && (
                 <div
-                  className="absolute bottom-full mb-3 left-1/2 -translate-x-1/2 z-[5] w-72 p-3.5 rounded-2xl bg-slate-950 border border-slate-700 shadow-2xl shadow-black ring-1 ring-white/10 text-left pointer-events-none animate-in fade-in zoom-in-95 duration-150"
+                  className="absolute bottom-full left-1/2 -translate-x-1/2 z-[5] pb-3 pointer-events-auto animate-in fade-in zoom-in-95 duration-150"
                   style={{ zIndex: 5 }}
                 >
+                <div className="w-72 p-3.5 rounded-2xl bg-slate-950 border border-slate-700 shadow-2xl shadow-black ring-1 ring-white/10 text-left">
                   <div className="flex items-start justify-between gap-2 mb-2">
                     <h4 className="font-bold text-white text-xs leading-snug break-words flex-1">
                       {business.name}
@@ -212,11 +221,27 @@ export const CustomMarkerLayer: React.FC<CustomMarkerLayerProps> = ({
                     )
                   )}
 
-                  {/* Hint */}
-                  <div className="pt-2 border-t border-slate-800/90 text-[9px] text-slate-400 flex items-center justify-between">
-                    <span>Click pin for full dossier</span>
-                    <span className="text-emerald-400 font-bold">Details →</span>
+                  {/* Actions */}
+                  <div className="pt-2 border-t border-slate-800/90 flex items-center justify-between gap-2">
+                    <button
+                      onClick={(e) => {
+                        // The marker itself opens the detail modal on click.
+                        e.stopPropagation();
+                        onToggleSelect?.(business.id);
+                      }}
+                      className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-bold border transition-colors cursor-pointer ${
+                        isStarred
+                          ? 'bg-amber-500/20 text-amber-300 border-amber-500/50 hover:bg-amber-500/30'
+                          : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-800 hover:text-white'
+                      }`}
+                      title={isStarred ? 'Remove from your list' : 'Save to your list'}
+                    >
+                      <Star className={`w-3 h-3 ${isStarred ? 'fill-amber-400 text-amber-400' : ''}`} />
+                      <span>{isStarred ? 'Selected' : 'Select'}</span>
+                    </button>
+                    <span className="text-[9px] text-emerald-400 font-bold">Details →</span>
                   </div>
+                </div>
                 </div>
               )}
 

@@ -56,6 +56,110 @@ export function isSocialPageOnly(url?: string | null): boolean {
   }
 }
 
+/**
+ * Hosts belonging to site builders and hosting platforms. A site on one of these is
+ * sitting on the builder's own subdomain, so the business never bought a domain.
+ * That lack of commitment — not the builder itself — is the lead signal: plenty of
+ * good sites run on WordPress or Squarespace with a real domain of their own.
+ */
+const NO_REAL_DOMAIN_HOSTS = [
+  'lovable.app',
+  'wixsite.com',
+  'editorx.io',
+  'squarespace.com',
+  'godaddysites.com',
+  'business.site',
+  'weebly.com',
+  'webnode.com',
+  'webflow.io',
+  'framer.website',
+  'framer.app',
+  'netlify.app',
+  'vercel.app',
+  'github.io',
+  'pages.dev',
+  'wordpress.com',
+  'blogspot.com',
+  'myshopify.com',
+  'strikingly.com',
+  'mystrikingly.com',
+  'jimdosite.com',
+  'tilda.ws',
+  'durable.co',
+  'softr.app',
+  'bubbleapps.io',
+  'glideapp.io',
+  'replit.app',
+  'onrender.com',
+];
+
+/**
+ * True when the listed website sits on a builder's subdomain rather than its own domain.
+ * Hostname-only, so it costs nothing — no need to fetch the site.
+ */
+export function isNoRealDomain(url?: string | null): boolean {
+  if (!url) return false;
+  const raw = url.trim();
+  if (!raw) return false;
+  try {
+    const host = new URL(/^https?:\/\//i.test(raw) ? raw : `https://${raw}`).hostname
+      .toLowerCase()
+      .replace(/^www\./, '');
+    return NO_REAL_DOMAIN_HOSTS.some((d) => host === d || host.endsWith(`.${d}`));
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * The builder a site is built on, when it can be told from the hostname alone.
+ * A label only — never a judgement. Returns null for a site on its own domain,
+ * which needs the page fetched to identify.
+ */
+export function getBuilderFromHost(url?: string | null): string | null {
+  if (!url) return null;
+  try {
+    const host = new URL(/^https?:\/\//i.test(url.trim()) ? url.trim() : `https://${url.trim()}`)
+      .hostname.toLowerCase();
+    const map: Record<string, string> = {
+      'lovable.app': 'Lovable',
+      'wixsite.com': 'Wix',
+      'editorx.io': 'Wix',
+      'squarespace.com': 'Squarespace',
+      'godaddysites.com': 'GoDaddy',
+      'business.site': 'Google Business',
+      'weebly.com': 'Weebly',
+      'webnode.com': 'Webnode',
+      'webflow.io': 'Webflow',
+      'framer.website': 'Framer',
+      'framer.app': 'Framer',
+      'netlify.app': 'Netlify',
+      'vercel.app': 'Vercel',
+      'github.io': 'GitHub Pages',
+      'pages.dev': 'Cloudflare Pages',
+      'wordpress.com': 'WordPress.com',
+      'blogspot.com': 'Blogger',
+      'myshopify.com': 'Shopify',
+      'strikingly.com': 'Strikingly',
+      'mystrikingly.com': 'Strikingly',
+      'jimdosite.com': 'Jimdo',
+      'tilda.ws': 'Tilda',
+      'durable.co': 'Durable',
+      'softr.app': 'Softr',
+      'bubbleapps.io': 'Bubble',
+      'glideapp.io': 'Glide',
+      'replit.app': 'Replit',
+      'onrender.com': 'Render',
+    };
+    for (const [d, name] of Object.entries(map)) {
+      if (host === d || host.endsWith(`.${d}`)) return name;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 interface MapKeyItem {
   key: string;
   label: string;
@@ -81,6 +185,13 @@ export const MAP_KEY_ITEMS: MapKeyItem[] = [
     description: 'Only an Instagram, Facebook or link-in-bio page. No real site.',
     color: '#ec4899',
     dotBg: 'bg-pink-500',
+  },
+  {
+    key: 'no_real_domain',
+    label: 'No real domain',
+    description: 'Site sits on a builder subdomain. They never bought a domain.',
+    color: '#06b6d4',
+    dotBg: 'bg-cyan-500',
   },
   {
     key: 'website',
@@ -159,6 +270,7 @@ export function setLeadStatus(id: string, status: LeadStatus): void {
 type BusinessPinCategory =
   | 'no_website'
   | 'social_page_only'
+  | 'no_real_domain'
   | 'website'
   | 'talking'
   | 'client'
@@ -256,6 +368,22 @@ export function getBusinessPinVisuals(
       labelBorderClass: 'border-pink-500/40 text-pink-200 group-hover:border-pink-400',
       labelTextClass: 'text-pink-400',
       dotColor: '#ec4899',
+    };
+  }
+
+  // Checked after social, so a Carrd or Square Site stays pink rather than becoming cyan.
+  if (isNoRealDomain(business.websiteURI)) {
+    const builder = getBuilderFromHost(business.websiteURI);
+    return {
+      category: 'no_real_domain',
+      label: 'No real domain',
+      badgeText: builder ? `${builder.toUpperCase()} • NO DOMAIN` : 'NO REAL DOMAIN',
+      badgeClass: 'bg-cyan-500/25 text-cyan-300 border-cyan-500/50',
+      auraColor: 'bg-cyan-400',
+      pinGradient: 'from-cyan-400 to-sky-500',
+      labelBorderClass: 'border-cyan-500/40 text-cyan-200 group-hover:border-cyan-400',
+      labelTextClass: 'text-cyan-400',
+      dotColor: '#06b6d4',
     };
   }
 
