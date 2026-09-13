@@ -17,7 +17,7 @@ import { isValidBusinessPlace } from '@/lib/businessValidation';
 import { filterBusinesses } from '@/lib/businessFilters';
 import { Loader2, AlertCircle } from 'lucide-react';
 
-const MAX_ROAM_BUSINESSES = 500;
+const MAX_ACCUMULATED_BUSINESSES = 500;
 
 interface MapContainerProps {
   apiKey: string;
@@ -40,6 +40,7 @@ interface MapContainerProps {
   isSearching: boolean;
   setIsSearching: (val: boolean) => void;
   searchTriggerCount: number;
+  clearTrigger?: number;
   zoomLevel: number;
   tiltAngle: number;
 }
@@ -64,6 +65,7 @@ const MapController: React.FC<MapContainerProps> = ({
   isSearching,
   setIsSearching,
   searchTriggerCount,
+  clearTrigger = 0,
   zoomLevel,
   tiltAngle,
 }) => {
@@ -122,6 +124,15 @@ const MapController: React.FC<MapContainerProps> = ({
       window.removeEventListener('storage', sync);
     };
   }, []);
+
+  // Clear the accumulated sweep on demand.
+  useEffect(() => {
+    if (clearTrigger === 0) return;
+    lastSearchKeyRef.current = '';
+    lastRoamKeyRef.current = '';
+    setBusinesses([]);
+    onBusinessesFetchedRef.current([]);
+  }, [clearTrigger]);
 
   // Pan map smoothly when centerPin changes
   useEffect(() => {
@@ -275,20 +286,26 @@ const MapController: React.FC<MapContainerProps> = ({
         };
       });
 
-      // Sort: No-website opportunities first, then by distance
-      mappedBusinesses.sort((a, b) => {
+      // Accumulate across searches: Google caps every search at 20 results with no
+      // pagination, so sweeping an area is the only way to build a real list.
+      // distanceMeters stays relative to the pin each business was found from.
+      const validPrev = businessesRef.current.filter(isValidBusinessPlace);
+      const existingIds = new Set(validPrev.map((b) => b.id));
+      const newUnique = mappedBusinesses.filter((b) => !existingIds.has(b.id));
+      const merged = [...validPrev, ...newUnique].slice(-MAX_ACCUMULATED_BUSINESSES);
+
+      merged.sort((a, b) => {
         if (!a.hasWebsite && b.hasWebsite) return -1;
         if (a.hasWebsite && !b.hasWebsite) return 1;
         return (a.distanceMeters || 0) - (b.distanceMeters || 0);
       });
 
-      setBusinesses(mappedBusinesses);
-      onBusinessesFetchedRef.current(mappedBusinesses);
+      setBusinesses(merged);
+      onBusinessesFetchedRef.current(merged);
     } catch (err: any) {
       console.error('Live Places API search error:', err);
       setErrorMessage(err?.message || 'Search failed. Please check your API key.');
-      setBusinesses([]);
-      onBusinessesFetchedRef.current([]);
+      // Keep whatever was already collected; one failed search must not wipe the sweep.
     } finally {
       isSearchRunningRef.current = false;
       setIsSearchingRef.current(false);
@@ -373,7 +390,7 @@ const MapController: React.FC<MapContainerProps> = ({
       const newUnique = mappedBusinesses.filter((b) => !existingIds.has(b.id));
       // ponytail: roam accumulates across pans, so drop the oldest beyond the cap. Swap for
       // "keep nearest to current centre" if users complain about pins vanishing behind them.
-      const merged = [...validPrev, ...newUnique].slice(-MAX_ROAM_BUSINESSES);
+      const merged = [...validPrev, ...newUnique].slice(-MAX_ACCUMULATED_BUSINESSES);
 
       setBusinesses(merged);
       onBusinessesFetchedRef.current(merged);

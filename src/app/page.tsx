@@ -7,6 +7,8 @@ import { DEFAULT_CENTER } from '@/lib/constants';
 import { exportBusinessesToCSV, copyOpportunitiesToClipboard } from '@/lib/exportUtils';
 import { isValidBusinessPlace } from '@/lib/businessValidation';
 import { filterBusinesses } from '@/lib/businessFilters';
+import { isSocialPageOnly, isNoRealDomain } from '@/lib/pindropUtils';
+import { getAllSelectedIds, SELECTION_CHANGED_EVENT } from '@/lib/selection';
 import { PindropTopBar } from '@/components/Search/PindropTopBar';
 import { PindropBottomBar } from '@/components/Controls/PindropBottomBar';
 import { PindropLeadsDrawer } from '@/components/Sidebar/PindropLeadsDrawer';
@@ -45,8 +47,22 @@ export default function Home() {
   const [isSearching, setIsSearching] = useState<boolean>(false);
   const [isLocating, setIsLocating] = useState<boolean>(false);
   const [searchTriggerCount, setSearchTriggerCount] = useState<number>(0);
+  const [clearTrigger, setClearTrigger] = useState<number>(0);
   const [copied, setCopied] = useState<boolean>(false);
   const [showSettings, setShowSettings] = useState<boolean>(false);
+  const [selectedIds, setSelectedIds] = useState<Record<string, true>>({});
+
+  // Mirrors the map's subscription; both read the same store so they cannot disagree.
+  useEffect(() => {
+    const sync = () => setSelectedIds(getAllSelectedIds());
+    sync();
+    window.addEventListener(SELECTION_CHANGED_EVENT, sync);
+    window.addEventListener('storage', sync);
+    return () => {
+      window.removeEventListener(SELECTION_CHANGED_EVENT, sync);
+      window.removeEventListener('storage', sync);
+    };
+  }, []);
 
   // Load API Key on mount from env or localStorage
   useEffect(() => {
@@ -148,15 +164,29 @@ export default function Home() {
     ]
   );
 
-  // Export handlers
-  const handleExportCSV = () => {
-    const targetBusinesses = opportunitiesOnly
-      ? filteredBusinesses.filter((b) => !b.hasWebsite)
-      : filteredBusinesses;
+  // Export handlers. Three explicit scopes rather than one button whose meaning depends
+  // on which filters happen to be on.
+  const stamp = `${centerPin.lat.toFixed(3)}_${centerPin.lng.toFixed(3)}`;
+
+  const isLead = (b: BusinessPlace) =>
+    !b.hasWebsite ||
+    !b.websiteURI?.trim() ||
+    isSocialPageOnly(b.websiteURI) ||
+    isNoRealDomain(b.websiteURI);
+
+  const handleExportSelected = () => {
     exportBusinessesToCSV(
-      targetBusinesses,
-      `pindrop_leads_${centerPin.lat.toFixed(3)}_${centerPin.lng.toFixed(3)}.csv`
+      filteredBusinesses.filter((b) => selectedIds[b.id]),
+      `mapcrack_selected_${stamp}.csv`
     );
+  };
+
+  const handleExportLeads = () => {
+    exportBusinessesToCSV(filteredBusinesses.filter(isLead), `mapcrack_leads_${stamp}.csv`);
+  };
+
+  const handleExportAll = () => {
+    exportBusinessesToCSV(filteredBusinesses, `mapcrack_all_${stamp}.csv`);
   };
 
   const handleCopyClipboard = async () => {
@@ -171,6 +201,11 @@ export default function Home() {
   // Trigger search on the current spot
   const handleSearchThisSpot = () => {
     setSearchTriggerCount((prev) => prev + 1);
+  };
+
+  // Searches accumulate, so the user needs an explicit way to start a fresh sweep.
+  const handleClearAll = () => {
+    setClearTrigger((prev) => prev + 1);
   };
 
   // Bottom Nav tab handler
@@ -224,7 +259,7 @@ export default function Home() {
           onToggleReviewCountRange={handleToggleReviewCountRange}
           onClearAdvancedFilters={handleClearAdvancedFilters}
           totalFilteredCount={filteredBusinesses.length}
-          onExportCSV={handleExportCSV}
+          onExportCSV={handleExportLeads}
           onZoomIn={() => setZoomLevel((z) => Math.min(20, z + 1))}
           onZoomOut={() => setZoomLevel((z) => Math.max(3, z - 1))}
           apiKey={apiKey}
@@ -252,6 +287,7 @@ export default function Home() {
           isSearching={isSearching}
           setIsSearching={setIsSearching}
           searchTriggerCount={searchTriggerCount}
+          clearTrigger={clearTrigger}
           zoomLevel={zoomLevel}
           tiltAngle={tiltAngle}
         />
@@ -278,7 +314,10 @@ export default function Home() {
           businesses={filteredBusinesses}
           selectedBusinessId={selectedBusiness?.id}
           onBusinessSelect={setSelectedBusiness}
-          onExportCSV={handleExportCSV}
+          onExportSelected={handleExportSelected}
+          onExportLeads={handleExportLeads}
+          onExportAll={handleExportAll}
+          onClearAll={handleClearAll}
           onCopyClipboard={handleCopyClipboard}
           copied={copied}
         />

@@ -2,8 +2,14 @@
 
 import React, { useState, useEffect } from 'react';
 import { BusinessPlace, LeadStatus } from '@/types/business';
-import { isSocialPageOnly, getAllLeadStatuses, getBusinessPinVisuals } from '@/lib/pindropUtils';
-import { X, Download, Copy, Check, Sparkles, ExternalLink, Star, MapPin } from 'lucide-react';
+import {
+  isSocialPageOnly,
+  isNoRealDomain,
+  getAllLeadStatuses,
+  getBusinessPinVisuals,
+} from '@/lib/pindropUtils';
+import { getAllSelectedIds, SELECTION_CHANGED_EVENT } from '@/lib/selection';
+import { X, Download, Copy, Check, Sparkles, ExternalLink, Star, MapPin, Trash2 } from 'lucide-react';
 
 interface PindropLeadsDrawerProps {
   isOpen: boolean;
@@ -11,7 +17,10 @@ interface PindropLeadsDrawerProps {
   businesses: BusinessPlace[];
   selectedBusinessId?: string | null;
   onBusinessSelect: (b: BusinessPlace) => void;
-  onExportCSV: () => void;
+  onExportSelected: () => void;
+  onExportLeads: () => void;
+  onExportAll: () => void;
+  onClearAll: () => void;
   onCopyClipboard: () => void;
   copied: boolean;
 }
@@ -22,20 +31,29 @@ export const PindropLeadsDrawer: React.FC<PindropLeadsDrawerProps> = ({
   businesses,
   selectedBusinessId,
   onBusinessSelect,
-  onExportCSV,
+  onExportSelected,
+  onExportLeads,
+  onExportAll,
+  onClearAll,
   onCopyClipboard,
   copied,
 }) => {
   const [leadStatuses, setLeadStatuses] = useState<Record<string, LeadStatus>>({});
+  const [selectedIds, setSelectedIds] = useState<Record<string, true>>({});
 
-  // Keep pipeline badges in sync with changes made elsewhere (e.g. the detail modal).
+  // Keep pipeline badges and stars in sync with changes made elsewhere (map, detail modal).
   useEffect(() => {
-    const sync = () => setLeadStatuses(getAllLeadStatuses());
+    const sync = () => {
+      setLeadStatuses(getAllLeadStatuses());
+      setSelectedIds(getAllSelectedIds());
+    };
     sync();
     window.addEventListener('pindrop_lead_status_changed', sync);
+    window.addEventListener(SELECTION_CHANGED_EVENT, sync);
     window.addEventListener('storage', sync);
     return () => {
       window.removeEventListener('pindrop_lead_status_changed', sync);
+      window.removeEventListener(SELECTION_CHANGED_EVENT, sync);
       window.removeEventListener('storage', sync);
     };
   }, []);
@@ -44,7 +62,10 @@ export const PindropLeadsDrawer: React.FC<PindropLeadsDrawerProps> = ({
 
   const noWebsiteList = businesses.filter((b) => !b.hasWebsite || !b.websiteURI);
   const socialOnlyList = businesses.filter((b) => isSocialPageOnly(b.websiteURI));
-  const opportunities = [...noWebsiteList, ...socialOnlyList];
+  const noDomainList = businesses.filter((b) => isNoRealDomain(b.websiteURI));
+  // Must match isLead in page.tsx, or these counts would disagree with what exports.
+  const opportunities = [...noWebsiteList, ...socialOnlyList, ...noDomainList];
+  const selectedCount = businesses.filter((b) => selectedIds[b.id]).length;
 
   return (
     <aside className="fixed inset-y-0 left-0 z-40 w-full sm:w-96 bg-white shadow-2xl border-r border-slate-200 flex flex-col animate-in slide-in-from-left duration-300">
@@ -69,9 +90,9 @@ export const PindropLeadsDrawer: React.FC<PindropLeadsDrawerProps> = ({
             {copied ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
           </button>
           <button
-            onClick={onExportCSV}
+            onClick={onExportLeads}
             className="p-2 rounded-xl text-slate-600 hover:bg-white hover:shadow-sm border border-transparent hover:border-slate-200 transition-all text-xs font-semibold flex items-center gap-1"
-            title="Export CSV"
+            title="Export leads CSV"
           >
             <Download className="w-4 h-4" />
           </button>
@@ -84,20 +105,51 @@ export const PindropLeadsDrawer: React.FC<PindropLeadsDrawerProps> = ({
         </div>
       </div>
 
-      {/* Export Action Strip */}
-      <div className="p-3 bg-amber-50 border-b border-amber-100 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Sparkles className="w-4 h-4 text-amber-600" />
-          <span className="text-xs font-semibold text-amber-900">
-            {opportunities.length} High-Value Targets
-          </span>
+      {/* Export Action Strip — three explicit scopes */}
+      <div className="p-3 bg-amber-50 border-b border-amber-100 space-y-2">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <Sparkles className="w-4 h-4 text-amber-600 shrink-0" />
+            <span className="text-xs font-semibold text-amber-900 truncate">
+              {selectedCount} selected • {opportunities.length} leads • {businesses.length} total
+            </span>
+          </div>
+          <button
+            onClick={onClearAll}
+            disabled={businesses.length === 0}
+            className="shrink-0 flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold text-slate-600 hover:text-rose-700 hover:bg-rose-50 border border-transparent hover:border-rose-200 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+            title="Clear all collected results and start a fresh sweep"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            <span>Clear</span>
+          </button>
         </div>
-        <button
-          onClick={onExportCSV}
-          className="px-3 py-1 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-sm transition-all"
-        >
-          Export CSV
-        </button>
+        <div className="grid grid-cols-3 gap-1.5">
+          <button
+            onClick={onExportSelected}
+            disabled={selectedCount === 0}
+            className="px-2 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold text-[11px] shadow-sm transition-all cursor-pointer"
+            title="Export only the businesses you starred"
+          >
+            Selected ({selectedCount})
+          </button>
+          <button
+            onClick={onExportLeads}
+            disabled={opportunities.length === 0}
+            className="px-2 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-900 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold text-[11px] shadow-sm transition-all cursor-pointer"
+            title="Export every lead: no website, social page only, or no real domain"
+          >
+            Leads ({opportunities.length})
+          </button>
+          <button
+            onClick={onExportAll}
+            disabled={businesses.length === 0}
+            className="px-2 py-1.5 rounded-xl bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed text-slate-700 border border-slate-300 font-bold text-[11px] shadow-sm transition-all cursor-pointer"
+            title="Export everything currently on screen"
+          >
+            All ({businesses.length})
+          </button>
+        </div>
       </div>
 
       {/* Leads List */}

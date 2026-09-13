@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Key, AlertTriangle, CheckCircle2, ExternalLink, X, ChevronRight, HelpCircle } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { Key, AlertTriangle, CheckCircle2, ExternalLink, X, ChevronRight, HelpCircle, Download, Upload } from 'lucide-react';
+import { exportMarks, importMarks } from '@/lib/selection';
 
 interface ApiKeyBannerProps {
   currentKey: string;
@@ -12,6 +13,20 @@ export const ApiKeyBanner: React.FC<ApiKeyBannerProps> = ({ currentKey, onKeyCha
   const [isOpen, setIsOpen] = useState(!currentKey);
   const [tempKey, setTempKey] = useState(currentKey);
   const [showInstructions, setShowInstructions] = useState(false);
+  const [restoreNote, setRestoreNote] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const handleRestoreFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const result = importMarks(await file.text());
+      setRestoreNote(`Restored ${result.selected} selected and ${result.statuses} statuses.`);
+    } catch (err: any) {
+      setRestoreNote(err?.message || 'Could not read that backup file.');
+    }
+    e.target.value = '';
+  };
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
@@ -104,6 +119,41 @@ export const ApiKeyBanner: React.FC<ApiKeyBannerProps> = ({ currentKey, onKeyCha
             </button>
           </div>
         </form>
+
+        {/* Marks live only in this browser, so a backup file is the only safety net. */}
+        <div className="mt-3 pt-3 border-t border-slate-800 space-y-2">
+          <p className="text-xs font-semibold text-slate-200">Your saved marks</p>
+          <p className="text-[11px] text-slate-400 leading-relaxed">
+            Selected stars and Talking/Client/No-go are stored in this browser only. Clearing
+            site data erases them. Back up to a file and keep it somewhere safe.
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => { exportMarks(); setRestoreNote('Backup downloaded.'); }}
+              className="flex-1 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-700 text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Backup</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              className="flex-1 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-700 text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+            >
+              <Upload className="w-3.5 h-3.5" />
+              <span>Restore</span>
+            </button>
+            <input
+              ref={fileRef}
+              type="file"
+              accept="application/json,.json"
+              onChange={handleRestoreFile}
+              className="hidden"
+            />
+          </div>
+          {restoreNote && <p className="text-[11px] text-emerald-400">{restoreNote}</p>}
+        </div>
 
         {showInstructions && (
           <div className="mt-3 pt-3 border-t border-slate-800 text-xs space-y-2 text-slate-300 animate-in fade-in">
