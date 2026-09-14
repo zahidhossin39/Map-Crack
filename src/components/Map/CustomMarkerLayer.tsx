@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { AdvancedMarker } from '@vis.gl/react-google-maps';
-import { Star } from 'lucide-react';
+import { Star, Gauge, Loader2 } from 'lucide-react';
 import { BusinessPlace, ExploreMode, LeadStatus } from '@/types/business';
 import { getBusinessPinVisuals } from '@/lib/pindropUtils';
 
@@ -17,6 +17,16 @@ interface CustomMarkerLayerProps {
   leadStatuses?: Record<string, LeadStatus>;
   selectedIds?: Record<string, true>;
   onToggleSelect?: (id: string) => void;
+  speedScores?: Record<string, number>;
+  checkingIds?: Record<string, true>;
+  onCheckSpeed?: (id: string, url: string) => void;
+}
+
+// Google's own mobile buckets: <50 poor (redesign lead), 50-89 needs work, 90+ good.
+function speedColor(score: number): string {
+  if (score < 50) return 'text-rose-400 border-rose-500/50 bg-rose-500/15';
+  if (score < 90) return 'text-amber-300 border-amber-500/50 bg-amber-500/15';
+  return 'text-emerald-300 border-emerald-500/50 bg-emerald-500/15';
 }
 
 export const CustomMarkerLayer: React.FC<CustomMarkerLayerProps> = ({
@@ -30,6 +40,9 @@ export const CustomMarkerLayer: React.FC<CustomMarkerLayerProps> = ({
   leadStatuses,
   selectedIds,
   onToggleSelect,
+  speedScores,
+  checkingIds,
+  onCheckSpeed,
 }) => {
   return (
     <>
@@ -64,6 +77,8 @@ export const CustomMarkerLayer: React.FC<CustomMarkerLayerProps> = ({
         const isSelected = selectedBusinessId === business.id;
         const isHovered = hoveredBusinessId === business.id;
         const isStarred = selectedIds?.[business.id] === true;
+        const speedScore = speedScores?.[business.id];
+        const isChecking = checkingIds?.[business.id] === true;
 
         // Render dot indicator string (e.g. "●●●●") based on rating
         const ratingDots = business.rating
@@ -219,6 +234,41 @@ export const CustomMarkerLayer: React.FC<CustomMarkerLayerProps> = ({
                         <span className="underline">{business.websiteURI.replace(/^https?:\/\/(www\.)?/, '')}</span>
                       </div>
                     )
+                  )}
+
+                  {/* Mobile speed — only for businesses that actually have a site to score. */}
+                  {business.websiteURI && (
+                    <div className="mb-2 flex items-center gap-2">
+                      {speedScore !== undefined ? (
+                        <span className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold border ${speedColor(speedScore)}`}>
+                          <Gauge className="w-3 h-3" />
+                          <span>Mobile {speedScore}/100</span>
+                          {speedScore < 50 && <span className="font-extrabold">• slow</span>}
+                        </span>
+                      ) : (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onCheckSpeed?.(business.id, business.websiteURI!);
+                          }}
+                          disabled={isChecking}
+                          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-bold border bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-800 hover:text-white disabled:opacity-60 transition-colors cursor-pointer"
+                          title="Check this site's mobile speed (Google PageSpeed)"
+                        >
+                          {isChecking ? (
+                            <>
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                              <span>Checking…</span>
+                            </>
+                          ) : (
+                            <>
+                              <Gauge className="w-3 h-3" />
+                              <span>Check speed</span>
+                            </>
+                          )}
+                        </button>
+                      )}
+                    </div>
                   )}
 
                   {/* Actions */}

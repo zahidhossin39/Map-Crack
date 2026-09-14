@@ -13,6 +13,12 @@ import { RadiusCircle } from '@/components/Map/RadiusCircle';
 import { CustomMarkerLayer } from '@/components/Map/CustomMarkerLayer';
 import { getAllLeadStatuses } from '@/lib/pindropUtils';
 import { getAllSelectedIds, toggleSelected, SELECTION_CHANGED_EVENT } from '@/lib/selection';
+import {
+  getAllSpeedScores,
+  setSpeedScore,
+  fetchPageSpeedMobile,
+  SPEED_CHANGED_EVENT,
+} from '@/lib/pagespeed';
 import { isValidBusinessPlace } from '@/lib/businessValidation';
 import { filterBusinesses } from '@/lib/businessFilters';
 import { Loader2, AlertCircle } from 'lucide-react';
@@ -79,6 +85,8 @@ const MapController: React.FC<MapContainerProps> = ({
   businessesRef.current = businesses;
   const [leadStatuses, setLeadStatuses] = useState<Record<string, any>>({});
   const [selectedIds, setSelectedIds] = useState<Record<string, true>>({});
+  const [speedScores, setSpeedScores] = useState<Record<string, number>>({});
+  const [checkingIds, setCheckingIds] = useState<Record<string, true>>({});
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isAbove50km, setIsAbove50km] = useState<boolean>(false);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -124,6 +132,30 @@ const MapController: React.FC<MapContainerProps> = ({
       window.removeEventListener('storage', sync);
     };
   }, []);
+
+  // Speed scores are cached per business, so a checked site keeps its score across searches.
+  useEffect(() => {
+    const sync = () => setSpeedScores(getAllSpeedScores());
+    sync();
+    window.addEventListener(SPEED_CHANGED_EVENT, sync);
+    window.addEventListener('storage', sync);
+    return () => {
+      window.removeEventListener(SPEED_CHANGED_EVENT, sync);
+      window.removeEventListener('storage', sync);
+    };
+  }, []);
+
+  const handleCheckSpeed = async (id: string, url: string) => {
+    if (checkingIds[id]) return;
+    setCheckingIds((prev) => ({ ...prev, [id]: true }));
+    const score = await fetchPageSpeedMobile(url, apiKey);
+    setCheckingIds((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+    if (score !== null) setSpeedScore(id, score);
+  };
 
   // Clear the accumulated sweep on demand.
   useEffect(() => {
@@ -515,6 +547,9 @@ const MapController: React.FC<MapContainerProps> = ({
         leadStatuses={leadStatuses}
         selectedIds={selectedIds}
         onToggleSelect={(id) => toggleSelected(id)}
+        speedScores={speedScores}
+        checkingIds={checkingIds}
+        onCheckSpeed={handleCheckSpeed}
       />
 
       {/* 50km Zoom Scale Notice & Performance Booster */}

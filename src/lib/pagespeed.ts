@@ -33,6 +33,16 @@ export function setSpeedScore(id: string, score: number): void {
  * failure (bad key, unreachable site, rate limit) — the caller treats null as "unknown".
  */
 export async function fetchPageSpeedMobile(url: string, apiKey: string): Promise<number | null> {
-  // agy fills this in
-  return null;
+  try {
+    const res = await fetch(
+      `https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(url)}&strategy=mobile&category=performance&key=${apiKey}`
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    const score = data?.lighthouseResult?.categories?.performance?.score;
+    if (typeof score !== 'number' || isNaN(score)) return null;
+    return Math.round(score * 100);
+  } catch {
+    return null;
+  }
 }
