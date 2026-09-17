@@ -2,6 +2,7 @@ import { BusinessPlace } from '@/types/business';
 import { isValidBusinessPlace } from '@/lib/businessValidation';
 import { getAllLeadStatuses, isSocialPageOnly, isNoRealDomain, getBuilderFromHost } from '@/lib/pindropUtils';
 import { getAllSelectedIds } from '@/lib/selection';
+import { getAllSpeedScores } from '@/lib/pagespeed';
 
 /**
  * Exports the list of businesses to a clean CSV file
@@ -15,6 +16,7 @@ export function exportBusinessesToCSV(
 
   const statuses = getAllLeadStatuses();
   const selectedIds = getAllSelectedIds();
+  const speedScores = getAllSpeedScores();
 
   const presenceOf = (b: BusinessPlace) => {
     if (!b.hasWebsite || !b.websiteURI?.trim()) return 'No website';
@@ -29,6 +31,7 @@ export function exportBusinessesToCSV(
     'Builder',
     'Selected',
     'Lead Status',
+    'Mobile Speed',
     'Has Website',
     'Website URL',
     'Phone Number',
@@ -53,6 +56,7 @@ export function exportBusinessesToCSV(
     escapeCSV(getBuilderFromHost(b.websiteURI) || ''),
     escapeCSV(selectedIds[b.id] ? 'Yes' : ''),
     escapeCSV(statuses[b.id] || 'none'),
+    escapeCSV(speedScores[b.id] !== undefined ? speedScores[b.id] : ''),
     escapeCSV(b.hasWebsite ? 'Yes' : 'NO - Opportunity'),
     escapeCSV(b.websiteURI || ''),
     escapeCSV(b.nationalPhoneNumber || b.internationalPhoneNumber || ''),
