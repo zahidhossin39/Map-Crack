@@ -258,7 +258,7 @@ export const CustomMarkerLayer: React.FC<CustomMarkerLayerProps> = ({
                           {isChecking ? (
                             <>
                               <Loader2 className="w-3 h-3 animate-spin" />
-                              <span>Checking…</span>
+                              <span>Scoring… up to ~1 min</span>
                             </>
                           ) : (
                             <>
@@ -267,6 +267,11 @@ export const CustomMarkerLayer: React.FC<CustomMarkerLayerProps> = ({
                             </>
                           )}
                         </button>
+                      )}
+                      {isChecking && (
+                        <span className="text-[9px] text-slate-500 leading-tight">
+                          Heavy sites are slow. Keep browsing — the score saves and shows next time you hover.
+                        </span>
                       )}
                     </div>
                   )}

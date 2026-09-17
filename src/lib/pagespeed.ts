@@ -34,8 +34,10 @@ export function setSpeedScore(id: string, score: number): void {
  */
 export async function fetchPageSpeedMobile(url: string, apiKey: string): Promise<number | null> {
   try {
+    // Heavy sites can take ~90s on Google's side; cap the wait so it can't hang forever.
     const res = await fetch(
-      `https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(url)}&strategy=mobile&category=performance&key=${apiKey}`
+      `https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(url)}&strategy=mobile&category=performance&key=${apiKey}`,
+      { signal: AbortSignal.timeout(120000) }
     );
     if (!res.ok) return null;
     const data = await res.json();
