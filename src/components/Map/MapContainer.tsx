@@ -340,12 +340,6 @@ const MapController: React.FC<MapContainerProps> = ({
       const newUnique = mappedBusinesses.filter((b) => !existingIds.has(b.id));
       const merged = [...validPrev, ...newUnique].slice(-MAX_ACCUMULATED_BUSINESSES);
 
-      merged.sort((a, b) => {
-        if (!a.hasWebsite && b.hasWebsite) return -1;
-        if (a.hasWebsite && !b.hasWebsite) return 1;
-        return (a.distanceMeters || 0) - (b.distanceMeters || 0);
-      });
-
       setBusinesses(merged);
       onBusinessesFetchedRef.current(merged);
     } catch (err: any) {

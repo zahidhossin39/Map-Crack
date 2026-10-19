@@ -72,7 +72,7 @@ export const CustomMarkerLayer: React.FC<CustomMarkerLayerProps> = ({
 
       {/* Business Pins (Exact Replica of Pindrop Map Key & Pins) */}
       {businesses.map((business) => {
-        const leadStatus = leadStatuses?.[business.id] || business.leadStatus || 'none';
+        const leadStatus = leadStatuses?.[business.id] || 'none';
         const visual = getBusinessPinVisuals(business, leadStatus);
         const isSelected = selectedBusinessId === business.id;
         const isHovered = hoveredBusinessId === business.id;

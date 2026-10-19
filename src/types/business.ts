@@ -18,8 +18,6 @@ export interface BusinessPlace {
   types?: string[] | null;
   businessStatus?: string | null;
   utcOffsetMinutes?: number | null;
-  isOpenNow?: boolean | null;
-  weekdayDescriptions?: string[] | null;
   regularOpeningHours?: {
     openNow?: boolean | null;
     weekdayDescriptions?: string[] | null;
@@ -29,8 +27,6 @@ export interface BusinessPlace {
   reviews?: any[] | null;
   googleMapsURI?: string | null;
   distanceMeters?: number;
-  isSocialOnly?: boolean;
-  leadStatus?: LeadStatus;
 }
 
 export type LeadStatus = 'none' | 'talking' | 'client' | 'nogo';
@@ -76,7 +72,7 @@ export interface CategoryOption {
   types: string[]; // Google Places API primary types or types
 }
 
-export type MapTheme = 'dark' | 'light' | 'silver' | 'night';
+export type MapTheme = 'dark' | 'light';
 
 export type ExploreMode = 'pin' | 'roam';
 

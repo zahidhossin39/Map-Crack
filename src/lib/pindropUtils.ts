@@ -257,7 +257,7 @@ export function getBusinessPinVisuals(
   business: BusinessPlace,
   overrideStatus?: LeadStatus
 ): PinVisualConfig {
-  const status = overrideStatus ?? business.leadStatus ?? 'none';
+  const status = overrideStatus ?? 'none';
 
   // 1. Pipeline Overrides
   if (status === 'client') {

@@ -88,15 +88,9 @@ export default function Home() {
 
   // Load API Key on mount from env or localStorage
   useEffect(() => {
-    const envKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
-    if (envKey && envKey.trim()) {
-      setApiKey(envKey.trim());
-    } else {
-      const storedKey = localStorage.getItem('gmp_api_key');
-      if (storedKey) {
-        setApiKey(storedKey);
-      }
-    }
+    // The env key is already the initial state; a saved key only fills in when there is none.
+    const storedKey = localStorage.getItem('gmp_api_key');
+    if (!process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY?.trim() && storedKey) setApiKey(storedKey);
 
     const storedTheme = localStorage.getItem('pindrop_theme') as MapTheme;
     if (storedTheme === 'dark' || storedTheme === 'light') {

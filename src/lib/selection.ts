@@ -19,10 +19,6 @@ export function getAllSelectedIds(): Record<string, true> {
   return readSet();
 }
 
-export function isSelected(id: string): boolean {
-  return readSet()[id] === true;
-}
-
 /** Returns the new selected state so callers can update optimistically. */
 export function toggleSelected(id: string): boolean {
   if (typeof window === 'undefined') return false;
@@ -98,9 +94,14 @@ export interface RestoreResult {
 export function importMarks(fileText: string): RestoreResult {
   const parsed = JSON.parse(fileText) as Partial<MarksBackup>;
   if (!parsed || typeof parsed !== 'object') throw new Error('Not a backup file.');
-  if (!Array.isArray(parsed.selected) || typeof parsed.statuses !== 'object') {
+  if (!Array.isArray(parsed.selected) || !parsed.statuses || typeof parsed.statuses !== 'object') {
     throw new Error('Backup file is missing its selected list or statuses.');
   }
+  // Validate everything before writing anything, so a bad file can't half-restore.
+  const VALID: LeadStatus[] = ['none', 'talking', 'client', 'nogo'];
+  const incoming = Object.entries(parsed.statuses).filter(
+    (e): e is [string, LeadStatus] => VALID.includes(e[1] as LeadStatus)
+  );
 
   const selection = readSet();
   for (const id of parsed.selected) {
@@ -115,14 +116,14 @@ export function importMarks(fileText: string): RestoreResult {
   } catch {
     statuses = {};
   }
-  const incoming = parsed.statuses as Record<string, LeadStatus>;
-  for (const [id, status] of Object.entries(incoming)) {
-    statuses[id] = status;
+  for (const [id, status] of incoming) {
+    if (status === 'none') delete statuses[id];
+    else statuses[id] = status;
   }
   localStorage.setItem(STATUS_KEY, JSON.stringify(statuses));
 
   window.dispatchEvent(new CustomEvent(SELECTION_CHANGED_EVENT, { detail: {} }));
   window.dispatchEvent(new CustomEvent('pindrop_lead_status_changed', { detail: {} }));
 
-  return { selected: parsed.selected.length, statuses: Object.keys(incoming).length };
+  return { selected: parsed.selected.length, statuses: incoming.length };
 }

@@ -10,11 +10,8 @@ const DEFAULT_COMMERCIAL_TYPES = [
   'electrician',
   'roofing_contractor',
   'painter',
-  'general_contractor',
   'locksmith',
   'moving_company',
-  'landscape_architect',
-  'gardener',
   'car_repair',
   'car_wash',
   'barber_shop',
@@ -169,7 +166,10 @@ export async function POST(req: NextRequest) {
       return message;
     };
 
-    try {
+    // A category with no Places type (landscaping, contractors) can only be found by text search.
+    const textOnly = categoryKey && categoryKey !== 'all' && !(Array.isArray(categoryTypes) && categoryTypes.length);
+
+    if (!textOnly) try {
       const response = await fetch(
         'https://places.googleapis.com/v1/places:searchNearby',
         {

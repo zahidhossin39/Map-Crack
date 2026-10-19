@@ -71,3 +71,14 @@ assert.strictEqual(tier('Ace HVAC & Heating', 'point_of_interest'), 'trades');
 assert.strictEqual(tier('Joe the Barber', 'barber_shop'), 'beauty');
 assert.strictEqual(tier('Bright Smiles', 'dentist'), 'gatekeeper');
 console.log('niche OK');
+
+// --- presence helpers: hostname only, never substrings ---
+import { isSocialPageOnly, isNoRealDomain, getBuilderFromHost, isLead } from './pindropUtils';
+assert.ok(isSocialPageOnly('https://www.instagram.com/joes'));
+assert.ok(!isSocialPageOnly('https://remax.com/?ref=x.com'), 'x.com inside another host or query is not social');
+assert.ok(isNoRealDomain('joes.wixsite.com/home'), 'no protocol still parses');
+assert.strictEqual(getBuilderFromHost('https://joes.business.site'), 'Google Business');
+assert.ok(!isNoRealDomain('https://joesplumbing.com'));
+assert.ok(isLead({ ...base, hasWebsite: true, websiteURI: 'https://facebook.com/joes' } as any));
+assert.ok(!isLead({ ...base, hasWebsite: true, websiteURI: 'https://joesplumbing.com' } as any));
+console.log('presence OK');

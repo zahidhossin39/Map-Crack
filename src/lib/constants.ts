@@ -40,7 +40,7 @@ export const CATEGORIES: CategoryOption[] = [
   {
     key: 'landscaping',
     label: 'Landscaping',
-    types: ['landscape_architect', 'gardener'],
+    types: [], // Google has no searchable type for these; nearby route uses text search
   },
   {
     key: 'roofing',
@@ -55,7 +55,7 @@ export const CATEGORIES: CategoryOption[] = [
   {
     key: 'general_contractor',
     label: 'General contractor',
-    types: ['general_contractor'],
+    types: [], // Google has no searchable type for these; nearby route uses text search
   },
   {
     key: 'auto_repair',
