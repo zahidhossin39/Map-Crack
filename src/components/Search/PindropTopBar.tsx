@@ -37,6 +37,8 @@ interface PindropTopBarProps {
   onToggleOpportunitiesOnly: () => void;
   socialPageOnly?: boolean;
   onToggleSocialPageOnly?: () => void;
+  hotOnly?: boolean;
+  onToggleHotOnly?: () => void;
   selectedRatingRanges?: string[];
   onToggleRatingRange?: (key: string) => void;
   selectedReviewCountRanges?: string[];
@@ -59,6 +61,8 @@ export const PindropTopBar: React.FC<PindropTopBarProps> = ({
   onToggleOpportunitiesOnly,
   socialPageOnly,
   onToggleSocialPageOnly,
+  hotOnly,
+  onToggleHotOnly,
   selectedRatingRanges = [],
   onToggleRatingRange,
   selectedReviewCountRanges = [],
@@ -346,7 +350,7 @@ export const PindropTopBar: React.FC<PindropTopBarProps> = ({
             <button
               onClick={() => setShowFilterDropdown(!showFilterDropdown)}
               className={`w-11 h-11 rounded-2xl flex items-center justify-center transition-all shadow-xl border cursor-pointer ${
-                showFilterDropdown || opportunitiesOnly || socialPageOnly || selectedCategory !== 'all'
+                showFilterDropdown || opportunitiesOnly || socialPageOnly || hotOnly || selectedCategory !== 'all'
                   ? 'bg-emerald-50 text-emerald-600 border-emerald-300 ring-2 ring-emerald-500/20'
                   : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-100/90'
               }`}
@@ -396,6 +400,20 @@ export const PindropTopBar: React.FC<PindropTopBarProps> = ({
                         <span>Social page only</span>
                       </div>
                       {socialPageOnly && <Check className="w-4 h-4 text-pink-600 shrink-0" />}
+                    </button>
+
+                    {/* 3. Hot leads (score >= HOT_SCORE) */}
+                    <button
+                      onClick={onToggleHotOnly}
+                      className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-[14px] font-semibold transition-colors cursor-pointer ${
+                        hotOnly ? 'bg-red-50/80 text-red-600 font-bold' : 'text-slate-800 hover:bg-slate-50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: '#ef4444' }} />
+                        <span>Hot leads only (70+)</span>
+                      </div>
+                      {hotOnly && <Check className="w-4 h-4 text-red-600 shrink-0" />}
                     </button>
 
                     {/* Divider */}

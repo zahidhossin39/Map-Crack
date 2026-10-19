@@ -30,6 +30,7 @@ export default function Home() {
   const [selectedCategory, setSelectedCategory] = useState<CategoryKey>('all');
   const [opportunitiesOnly, setOpportunitiesOnly] = useState<boolean>(false);
   const [socialPageOnly, setSocialPageOnly] = useState<boolean>(false);
+  const [hotOnly, setHotOnly] = useState<boolean>(false);
   const [selectedRatingRanges, setSelectedRatingRanges] = useState<string[]>([]);
   const [selectedReviewCountRanges, setSelectedReviewCountRanges] = useState<string[]>([]);
 
@@ -150,6 +151,7 @@ export default function Home() {
       filterBusinesses(businesses, {
         opportunitiesOnly,
         socialPageOnly,
+        hotOnly,
         selectedCategory,
         selectedRatingRanges,
         selectedReviewCountRanges,
@@ -158,6 +160,7 @@ export default function Home() {
       businesses,
       opportunitiesOnly,
       socialPageOnly,
+      hotOnly,
       selectedCategory,
       selectedRatingRanges,
       selectedReviewCountRanges,
@@ -253,6 +256,8 @@ export default function Home() {
               return next;
             });
           }}
+          hotOnly={hotOnly}
+          onToggleHotOnly={() => setHotOnly((prev) => !prev)}
           selectedRatingRanges={selectedRatingRanges}
           onToggleRatingRange={handleToggleRatingRange}
           selectedReviewCountRanges={selectedReviewCountRanges}
@@ -276,6 +281,7 @@ export default function Home() {
           selectedCategory={selectedCategory}
           opportunitiesOnly={opportunitiesOnly}
           socialPageOnly={socialPageOnly}
+          hotOnly={hotOnly}
           selectedRatingRanges={selectedRatingRanges}
           selectedReviewCountRanges={selectedReviewCountRanges}
           selectedBusinessId={selectedBusiness?.id}

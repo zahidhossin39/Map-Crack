@@ -3,6 +3,7 @@ import { isValidBusinessPlace } from '@/lib/businessValidation';
 import { getAllLeadStatuses, isSocialPageOnly, isNoRealDomain, getBuilderFromHost } from '@/lib/pindropUtils';
 import { getAllSelectedIds } from '@/lib/selection';
 import { getAllSpeedScores } from '@/lib/pagespeed';
+import { scoreLead } from '@/lib/leadScore';
 
 /**
  * Exports the list of businesses to a clean CSV file
@@ -27,6 +28,9 @@ export function exportBusinessesToCSV(
 
   const headers = [
     'Name',
+    'Lead Score',
+    'Why',
+    'Opener',
     'Presence',
     'Builder',
     'Selected',
@@ -50,8 +54,13 @@ export function exportBusinessesToCSV(
     return `"${str}"`;
   };
 
-  const rows = validBusinesses.map((b) => [
+  const rows = validBusinesses.map((b) => {
+    const lead = scoreLead(b);
+    return [
     escapeCSV(b.name),
+    escapeCSV(lead.score),
+    escapeCSV(lead.reasons.join('; ')),
+    escapeCSV(lead.opener),
     escapeCSV(presenceOf(b)),
     escapeCSV(getBuilderFromHost(b.websiteURI) || ''),
     escapeCSV(selectedIds[b.id] ? 'Yes' : ''),
@@ -67,7 +76,8 @@ export function exportBusinessesToCSV(
     escapeCSV(b.businessStatus || ''),
     escapeCSV(b.googleMapsURI || ''),
     escapeCSV(b.distanceMeters ? Math.round(b.distanceMeters) : ''),
-  ]);
+    ];
+  });
 
   const csvContent =
     'data:text/csv;charset=utf-8,\uFEFF' +

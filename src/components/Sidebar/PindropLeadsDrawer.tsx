@@ -9,6 +9,7 @@ import {
   getBusinessPinVisuals,
 } from '@/lib/pindropUtils';
 import { getAllSelectedIds, SELECTION_CHANGED_EVENT } from '@/lib/selection';
+import { scoreLead, callWindow, HOT_SCORE } from '@/lib/leadScore';
 import { X, Download, Copy, Check, Sparkles, ExternalLink, Star, MapPin, Trash2 } from 'lucide-react';
 
 interface PindropLeadsDrawerProps {
@@ -191,6 +192,7 @@ export const PindropLeadsDrawer: React.FC<PindropLeadsDrawerProps> = ({
                       <span className={`shrink-0 px-1.5 py-0.5 rounded-md text-[10px] font-extrabold tracking-wide border ${visual.badgeClass}`}>
                         {visual.badgeText}
                       </span>
+                      <ScoreChip b={b} />
                     </div>
 
                     <p className="text-[11px] text-slate-500 mt-1 leading-snug break-words">
@@ -236,3 +238,26 @@ export const PindropLeadsDrawer: React.FC<PindropLeadsDrawerProps> = ({
     </aside>
   );
 };
+
+function ScoreChip({ b }: { b: BusinessPlace }) {
+  const { score } = scoreLead(b);
+  const win = callWindow(b);
+  const tone =
+    score >= HOT_SCORE
+      ? 'bg-red-50 text-red-700 border-red-200'
+      : score >= 50
+      ? 'bg-orange-50 text-orange-700 border-orange-200'
+      : 'bg-slate-50 text-slate-500 border-slate-200';
+  return (
+    <>
+      <span className={`shrink-0 px-1.5 py-0.5 rounded-md text-[10px] font-extrabold border ${tone}`} title="Lead score">
+        {score}
+      </span>
+      {win?.good && score >= 50 && (
+        <span className="shrink-0 px-1.5 py-0.5 rounded-md text-[10px] font-bold border bg-emerald-50 text-emerald-700 border-emerald-200" title={`Their time ${win.localTime}`}>
+          Call now
+        </span>
+      )}
+    </>
+  );
+}

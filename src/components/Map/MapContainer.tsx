@@ -35,6 +35,7 @@ interface MapContainerProps {
   selectedCategory: CategoryKey;
   opportunitiesOnly: boolean;
   socialPageOnly?: boolean;
+  hotOnly?: boolean;
   selectedRatingRanges?: string[];
   selectedReviewCountRanges?: string[];
   selectedBusinessId?: string | null;
@@ -60,6 +61,7 @@ const MapController: React.FC<MapContainerProps> = ({
   selectedCategory,
   opportunitiesOnly,
   socialPageOnly = false,
+  hotOnly = false,
   selectedRatingRanges = [],
   selectedReviewCountRanges = [],
   selectedBusinessId,
@@ -509,6 +511,7 @@ const MapController: React.FC<MapContainerProps> = ({
       filterBusinesses(businesses, {
         opportunitiesOnly,
         socialPageOnly,
+        hotOnly,
         selectedCategory,
         selectedRatingRanges,
         selectedReviewCountRanges,
@@ -517,6 +520,7 @@ const MapController: React.FC<MapContainerProps> = ({
       businesses,
       opportunitiesOnly,
       socialPageOnly,
+      hotOnly,
       selectedCategory,
       selectedRatingRanges,
       selectedReviewCountRanges,

@@ -17,6 +17,7 @@ export interface BusinessPlace {
   primaryTypeDisplayName?: string | null;
   types?: string[] | null;
   businessStatus?: string | null;
+  utcOffsetMinutes?: number | null;
   isOpenNow?: boolean | null;
   weekdayDescriptions?: string[] | null;
   regularOpeningHours?: {

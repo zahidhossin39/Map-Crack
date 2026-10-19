@@ -58,6 +58,7 @@ export async function POST(req: NextRequest) {
       'places.photos',
       'places.googleMapsUri',
       'places.businessStatus',
+      'places.utcOffsetMinutes',
     ].join(',');
 
     const response = await fetch(
@@ -119,6 +120,7 @@ export async function POST(req: NextRequest) {
         primaryTypeDisplayName: p.primaryTypeDisplayName?.text || '',
         types: p.types || [],
         businessStatus: p.businessStatus || 'OPERATIONAL',
+        utcOffsetMinutes: p.utcOffsetMinutes ?? null,
         regularOpeningHours: p.regularOpeningHours
           ? {
               openNow: p.regularOpeningHours.openNow,

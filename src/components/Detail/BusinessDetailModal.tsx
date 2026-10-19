@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { scoreLead, callWindow } from '@/lib/leadScore';
 import { BusinessPlace } from '@/types/business';
 import { isSocialPageOnly, getLeadStatus, setLeadStatus, LeadStatus } from '@/lib/pindropUtils';
 import {
@@ -146,6 +147,8 @@ export const BusinessDetailModal: React.FC<BusinessDetailModalProps> = ({
               {business.primaryTypeDisplayName || business.primaryType?.replace(/_/g, ' ') || 'Local Business'}
             </p>
           </div>
+
+          <LeadIntel business={business} />
 
           {/* Lead Pipeline Status (Map Key Actions) */}
           <div className="p-3.5 rounded-2xl bg-slate-950/70 border border-slate-800 space-y-2.5">
@@ -349,3 +352,29 @@ export const BusinessDetailModal: React.FC<BusinessDetailModalProps> = ({
     </div>
   );
 };
+
+function LeadIntel({ business }: { business: BusinessPlace }) {
+  const { score, reasons, opener } = scoreLead(business);
+  const win = callWindow(business);
+  return (
+    <div className="p-3.5 rounded-2xl bg-slate-950/70 border border-slate-800 space-y-2.5 text-xs">
+      <div className="flex items-center justify-between">
+        <span className="font-bold text-slate-200">Lead score</span>
+        <span className="text-lg font-extrabold text-white">{score}<span className="text-slate-500 text-xs">/100</span></span>
+      </div>
+      {reasons.length > 0 && (
+        <ul className="space-y-0.5 text-slate-300 list-disc pl-4">
+          {reasons.map((r) => <li key={r}>{r}</li>)}
+        </ul>
+      )}
+      {win && (
+        <p className={win.good ? 'text-emerald-400 font-semibold' : 'text-slate-400'}>
+          Their time {win.localTime} · {win.good ? 'good time to call' : `best ${win.label} weekdays`}
+        </p>
+      )}
+      {opener && (
+        <p className="text-slate-200 italic border-l-2 border-brand-400 pl-2">&ldquo;{opener}&rdquo;</p>
+      )}
+    </div>
+  );
+}
