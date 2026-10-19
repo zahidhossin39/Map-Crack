@@ -41,10 +41,17 @@ export function resolveServerKey(
   return { key };
 }
 
-function isSameOrigin(req: NextRequest): boolean {
+/**
+ * True only for requests made by this app's own pages. Browsers set Sec-Fetch-Site and pages
+ * cannot forge it, so other websites are blocked. A request with neither header (curl, a script)
+ * is rejected too. shortcut: a script can still fake both headers, so a public deploy needs
+ * real auth or a rate limit on top.
+ */
+export function isSameOrigin(req: NextRequest): boolean {
+  const site = req.headers.get('sec-fetch-site');
+  if (site) return site === 'same-origin';
   const origin = req.headers.get('origin');
-  // Same-origin fetches from the browser may omit Origin entirely; only reject a mismatch.
-  if (!origin) return true;
+  if (!origin) return false;
   try {
     return new URL(origin).host === req.headers.get('host');
   } catch {

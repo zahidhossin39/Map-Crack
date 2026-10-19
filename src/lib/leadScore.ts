@@ -15,13 +15,14 @@ export const HOT_SCORE = 70;
 
 type Tier = 'trades' | 'auto' | 'beauty' | 'low' | 'gatekeeper' | 'other';
 
-// Matched against primaryType, types and name, because Places has no type for HVAC, roofing etc. on many listings.
+// Whole-word patterns, so "Street" doesn't match "tree" and "electronics" doesn't match "electric".
+// Checked against Google's types first, then the name, because Places has no type for HVAC, roofing etc.
 const TIER_PATTERNS: [Tier, RegExp][] = [
-  ['gatekeeper', /dentist|dental|lawyer|attorney|law_firm|hospital|school|university|church|government|city_hall|bank/i],
-  ['trades', /roof|hvac|heating|air.?condition|plumb|electric|restoration|water.?damage|tree|pest|exterminat|septic|drain|foundation/i],
-  ['auto', /car_repair|auto|collision|body.?shop|transmission|garage.?door|locksmith|mover|moving|landscap|lawn|clean|paint|contractor|remodel|fenc|concrete|pool/i],
-  ['beauty', /med.?spa|spa|salon|barber|nail|beauty|lash|brow|tattoo|gym|fitness|yoga|chiropract|massage|physiotherap|veterinar/i],
-  ['low', /restaurant|cafe|coffee|bakery|bar|food|meal|store|shop|laundr|dry_clean|convenience|gas_station|atm|parking/i],
+  ['gatekeeper', /\b(dentist|dental \w+|lawyer|attorneys?|law firm|hospital|school|university|church|city hall|local government office|bank|doctor|pharmacy)\b/],
+  ['trades', /\b(roof\w*|hvac|heating|air conditioning|plumb\w*|electric|electrician|electrical|restoration|water damage|tree (?:service|care|removal|surgeons?)|arborists?|pest control|exterminat\w*|septic|drain\w*|foundation repair)\b/],
+  ['auto', /\b(car repair|auto\w*|collision|body shop|transmission|garage doors?|locksmiths?|movers|moving company|landscap\w*|gardeners?|lawn|cleaning|cleaners|painters?|painting|general contractor|contractors?|remodel\w*|fenc\w*|concrete|pool (?:service|cleaning)|car wash)\b/],
+  ['beauty', /\b(med ?spa|spa|salon|barber\w*|nails?|beauty|lash\w*|brows?|tattoo|gym|fitness \w+|fitness|yoga|chiropract\w*|massage|physiotherap\w*|veterinar\w*)\b/],
+  ['low', /\b(restaurant|cafe|coffee \w+|bakery|bar|pub|food|meal \w+|store|shop|supermarket|grocery \w+|laundry|dry cleaning|gas station|atm|parking|lodging|hotel)\b/],
 ];
 
 const TIER_POINTS: Record<Tier, number> = { trades: 25, auto: 18, beauty: 12, other: 8, low: 0, gatekeeper: 0 };
@@ -29,8 +30,9 @@ const TIER_POINTS: Record<Tier, number> = { trades: 25, auto: 18, beauty: 12, ot
 const CHAINS = /mcdonald|starbucks|subway|walmart|target|cvs|walgreens|7-eleven|roto-rooter|servicemaster|servpro|jiffy lube|midas|meineke|great clips|supercuts|h&r block|state farm|allstate|anytime fitness|planet fitness|chase|wells fargo|tesco|boots|specsavers|greggs|costa/i;
 
 export function nicheTier(b: BusinessPlace): Tier {
-  const hay = [b.primaryType, ...(b.types || []), b.name].join(' ');
-  return TIER_PATTERNS.find(([, re]) => re.test(hay))?.[0] ?? 'other';
+  const match = (text: string) => TIER_PATTERNS.find(([, re]) => re.test(text))?.[0];
+  const types = [b.primaryType, ...(b.types || [])].join(' ').replace(/_/g, ' ').toLowerCase();
+  return match(types) ?? match(b.name.toLowerCase()) ?? 'other';
 }
 
 // UK 07 and AU 04 numbers are mobiles, which usually means the owner answers.

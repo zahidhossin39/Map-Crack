@@ -103,6 +103,9 @@ const MapController: React.FC<MapContainerProps> = ({
   // Deduplication tracking to prevent duplicate in-flight or identical searches
   const lastSearchKeyRef = useRef<string>('');
   const isSearchRunningRef = useRef<boolean>(false);
+  // A pin dropped mid-search must not be lost: remember it and run once the current one ends.
+  const searchPendingRef = useRef<boolean>(false);
+  const executeSearchRef = useRef<() => void>(() => {});
   const lastRoamKeyRef = useRef<string>('');
   const isRoamRunningRef = useRef<boolean>(false);
 
@@ -263,7 +266,10 @@ const MapController: React.FC<MapContainerProps> = ({
 
   // Execute Nearby Search via live Places API (New) endpoint
   const executeSearch = useCallback(async () => {
-    if (isSearchRunningRef.current) return;
+    if (isSearchRunningRef.current) {
+      searchPendingRef.current = true;
+      return;
+    }
 
     const searchKey = `${centerPin.lat.toFixed(5)}_${centerPin.lng.toFixed(5)}_${radiusMeters}_${selectedCategory}_${apiKey}_${searchTriggerCount}`;
     if (lastSearchKeyRef.current === searchKey) {
@@ -343,6 +349,10 @@ const MapController: React.FC<MapContainerProps> = ({
     } finally {
       isSearchRunningRef.current = false;
       setIsSearchingRef.current(false);
+      if (searchPendingRef.current) {
+        searchPendingRef.current = false;
+        executeSearchRef.current();
+      }
     }
   }, [
     centerPin.lat,
@@ -352,6 +362,8 @@ const MapController: React.FC<MapContainerProps> = ({
     apiKey,
     searchTriggerCount,
   ]);
+
+  executeSearchRef.current = executeSearch;
 
   // Execute Roam Search across visible viewport bounds
   const executeRoamSearch = useCallback(async () => {

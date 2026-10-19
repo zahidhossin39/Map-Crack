@@ -113,7 +113,7 @@ export const PindropTopBar: React.FC<PindropTopBarProps> = ({
 
   // Fetch real Google Places matching text search
   useEffect(() => {
-    if (!input.trim() || input.length < 2) {
+    if (input.trim().length < 3) {
       setSuggestions([]);
       setIsLoading(false);
       return;

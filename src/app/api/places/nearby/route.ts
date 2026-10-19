@@ -2,27 +2,32 @@ import { NextRequest, NextResponse } from 'next/server';
 import { isValidBusinessPlace } from '@/lib/businessValidation';
 import { resolveServerKey } from '@/lib/serverApiKey';
 
+// "All businesses" search. Google returns only 20 per search, so these are the niches that
+// make good call leads (see docs/lead-quality-plan.md). Hotels, supermarkets, chains and
+// gatekeeper niches (doctors, dentists, lawyers) would only crowd them out.
 const DEFAULT_COMMERCIAL_TYPES = [
-  'restaurant',
-  'cafe',
-  'bakery',
-  'bar',
-  'store',
-  'supermarket',
-  'clothing_store',
+  'plumber',
+  'electrician',
+  'roofing_contractor',
+  'painter',
+  'general_contractor',
+  'locksmith',
+  'moving_company',
+  'landscape_architect',
+  'gardener',
   'car_repair',
+  'car_wash',
+  'barber_shop',
+  'hair_salon',
   'beauty_salon',
-  'hair_care',
+  'nail_salon',
   'spa',
   'gym',
-  'hotel',
-  'lodging',
+  'fitness_center',
+  'veterinary_care',
+  'florist',
   'real_estate_agency',
-  'lawyer',
-  'accounting',
-  'dentist',
-  'doctor',
-  'pharmacy',
+  'insurance_agency',
 ];
 
 function formatPlaces(rawPlaces: any[]) {

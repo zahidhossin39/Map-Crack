@@ -57,3 +57,17 @@ const rs = scoreLead(roofer, null, intel);
 assert.match(rs.opener, /couldn't get through/);
 assert.ok(rs.reasons.some((x) => /unanswered calls/.test(x)) && rs.reasons.some((x) => /No new reviews/.test(x)));
 console.log('reviews OK', intel.phoneComplaints);
+
+// --- niche matching: whole words, types before name ---
+import { nicheTier } from './leadScore';
+const tier = (name: string, primaryType = '', types: string[] = []) =>
+  nicheTier({ ...base, name, primaryType, types } as any);
+assert.strictEqual(tier('Main Street Diner', 'restaurant'), 'low', '"Street" is not "tree"');
+assert.strictEqual(tier('Best Buy', 'electronics_store'), 'low', '"electronics" is not "electric"');
+assert.strictEqual(tier('Space Coast Realty', 'real_estate_agency'), 'other', '"Space" is not "spa"');
+assert.strictEqual(tier('Liverpool Books', 'book_store'), 'low', '"Liverpool" is not pool service');
+assert.strictEqual(tier('Smith Electric'), 'trades', 'name fallback still works');
+assert.strictEqual(tier('Ace HVAC & Heating', 'point_of_interest'), 'trades');
+assert.strictEqual(tier('Joe the Barber', 'barber_shop'), 'beauty');
+assert.strictEqual(tier('Bright Smiles', 'dentist'), 'gatekeeper');
+console.log('niche OK');
