@@ -21,6 +21,8 @@ import {
 } from '@/lib/pagespeed';
 import { isValidBusinessPlace } from '@/lib/businessValidation';
 import { filterBusinesses } from '@/lib/businessFilters';
+import type { Xray } from '@/lib/xray';
+import type { ReviewIntel } from '@/lib/reviewIntel';
 import { Loader2, AlertCircle } from 'lucide-react';
 
 const MAX_ACCUMULATED_BUSINESSES = 500;
@@ -36,6 +38,8 @@ interface MapContainerProps {
   opportunitiesOnly: boolean;
   socialPageOnly?: boolean;
   hotOnly?: boolean;
+  xrays: Record<string, Xray>;
+  reviewIntel: Record<string, ReviewIntel>;
   selectedRatingRanges?: string[];
   selectedReviewCountRanges?: string[];
   selectedBusinessId?: string | null;
@@ -62,6 +66,8 @@ const MapController: React.FC<MapContainerProps> = ({
   opportunitiesOnly,
   socialPageOnly = false,
   hotOnly = false,
+  xrays,
+  reviewIntel,
   selectedRatingRanges = [],
   selectedReviewCountRanges = [],
   selectedBusinessId,
@@ -524,6 +530,8 @@ const MapController: React.FC<MapContainerProps> = ({
         opportunitiesOnly,
         socialPageOnly,
         hotOnly,
+        xrays,
+        reviewIntel,
         selectedCategory,
         selectedRatingRanges,
         selectedReviewCountRanges,
@@ -533,6 +541,8 @@ const MapController: React.FC<MapContainerProps> = ({
       opportunitiesOnly,
       socialPageOnly,
       hotOnly,
+      xrays,
+      reviewIntel,
       selectedCategory,
       selectedRatingRanges,
       selectedReviewCountRanges,

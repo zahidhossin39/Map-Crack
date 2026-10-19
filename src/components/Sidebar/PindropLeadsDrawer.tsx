@@ -4,20 +4,22 @@ import React, { useState, useEffect } from 'react';
 import { BusinessPlace, LeadStatus } from '@/types/business';
 import {
   isSocialPageOnly,
-  isNoRealDomain,
+  isLead,
   getAllLeadStatuses,
   getBusinessPinVisuals,
 } from '@/lib/pindropUtils';
 import { getAllSelectedIds, SELECTION_CHANGED_EVENT } from '@/lib/selection';
 import { scoreLead, callWindow, HOT_SCORE } from '@/lib/leadScore';
-import { getAllXrays, XRAY_CHANGED_EVENT } from '@/lib/xray';
-import { getAllReviewIntel, REVIEWS_CHANGED_EVENT } from '@/lib/reviewIntel';
+import type { Xray } from '@/lib/xray';
+import type { ReviewIntel } from '@/lib/reviewIntel';
 import { X, Download, Copy, Check, Sparkles, ExternalLink, Star, MapPin, Trash2 } from 'lucide-react';
 
 interface PindropLeadsDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   businesses: BusinessPlace[];
+  xrays: Record<string, Xray>;
+  reviewIntel: Record<string, ReviewIntel>;
   selectedBusinessId?: string | null;
   onBusinessSelect: (b: BusinessPlace) => void;
   onExportSelected: () => void;
@@ -32,6 +34,8 @@ export const PindropLeadsDrawer: React.FC<PindropLeadsDrawerProps> = ({
   isOpen,
   onClose,
   businesses,
+  xrays,
+  reviewIntel,
   selectedBusinessId,
   onBusinessSelect,
   onExportSelected,
@@ -53,14 +57,10 @@ export const PindropLeadsDrawer: React.FC<PindropLeadsDrawerProps> = ({
     sync();
     window.addEventListener('pindrop_lead_status_changed', sync);
     window.addEventListener(SELECTION_CHANGED_EVENT, sync);
-    window.addEventListener(XRAY_CHANGED_EVENT, sync);
-    window.addEventListener(REVIEWS_CHANGED_EVENT, sync);
     window.addEventListener('storage', sync);
     return () => {
       window.removeEventListener('pindrop_lead_status_changed', sync);
       window.removeEventListener(SELECTION_CHANGED_EVENT, sync);
-      window.removeEventListener(XRAY_CHANGED_EVENT, sync);
-      window.removeEventListener(REVIEWS_CHANGED_EVENT, sync);
       window.removeEventListener('storage', sync);
     };
   }, []);
@@ -69,9 +69,7 @@ export const PindropLeadsDrawer: React.FC<PindropLeadsDrawerProps> = ({
 
   const noWebsiteList = businesses.filter((b) => !b.hasWebsite || !b.websiteURI);
   const socialOnlyList = businesses.filter((b) => isSocialPageOnly(b.websiteURI));
-  const noDomainList = businesses.filter((b) => isNoRealDomain(b.websiteURI));
-  // Must match isLead in page.tsx, or these counts would disagree with what exports.
-  const opportunities = [...noWebsiteList, ...socialOnlyList, ...noDomainList];
+  const opportunities = businesses.filter(isLead);
   const selectedCount = businesses.filter((b) => selectedIds[b.id]).length;
 
   return (
@@ -198,7 +196,7 @@ export const PindropLeadsDrawer: React.FC<PindropLeadsDrawerProps> = ({
                       <span className={`shrink-0 px-1.5 py-0.5 rounded-md text-[10px] font-extrabold tracking-wide border ${visual.badgeClass}`}>
                         {visual.badgeText}
                       </span>
-                      <ScoreChip b={b} />
+                      <ScoreChip b={b} xray={xrays[b.id]} reviews={reviewIntel[b.id]} />
                     </div>
 
                     <p className="text-[11px] text-slate-500 mt-1 leading-snug break-words">
@@ -245,8 +243,8 @@ export const PindropLeadsDrawer: React.FC<PindropLeadsDrawerProps> = ({
   );
 };
 
-function ScoreChip({ b }: { b: BusinessPlace }) {
-  const { score } = scoreLead(b, getAllXrays()[b.id], getAllReviewIntel()[b.id]);
+function ScoreChip({ b, xray, reviews }: { b: BusinessPlace; xray?: Xray; reviews?: ReviewIntel }) {
+  const { score } = scoreLead(b, xray, reviews);
   const win = callWindow(b);
   const tone =
     score >= HOT_SCORE

@@ -126,7 +126,7 @@ export async function copyOpportunitiesToClipboard(
     return parts.join('\n');
   });
 
-  const text = `=== LOCAL BUSINESS OPPORTUNITIES (NO WEBSITE) ===\nTotal Leads: ${opportunities.length}\n\n${lines.join('\n\n')}`;
+  const text = `=== LOCAL BUSINESS LEADS ===\nTotal Leads: ${opportunities.length}\n\n${lines.join('\n\n')}`;
 
   try {
     await navigator.clipboard.writeText(text);

@@ -7,8 +7,10 @@ import { DEFAULT_CENTER } from '@/lib/constants';
 import { exportBusinessesToCSV, copyOpportunitiesToClipboard } from '@/lib/exportUtils';
 import { isValidBusinessPlace } from '@/lib/businessValidation';
 import { filterBusinesses } from '@/lib/businessFilters';
-import { isSocialPageOnly, isNoRealDomain } from '@/lib/pindropUtils';
+import { isLead } from '@/lib/pindropUtils';
 import { getAllSelectedIds, SELECTION_CHANGED_EVENT } from '@/lib/selection';
+import { Xray, getAllXrays, XRAY_CHANGED_EVENT } from '@/lib/xray';
+import { ReviewIntel, getAllReviewIntel, REVIEWS_CHANGED_EVENT } from '@/lib/reviewIntel';
 import { PindropTopBar } from '@/components/Search/PindropTopBar';
 import { PindropBottomBar } from '@/components/Controls/PindropBottomBar';
 import { PindropLeadsDrawer } from '@/components/Sidebar/PindropLeadsDrawer';
@@ -31,6 +33,25 @@ export default function Home() {
   const [opportunitiesOnly, setOpportunitiesOnly] = useState<boolean>(false);
   const [socialPageOnly, setSocialPageOnly] = useState<boolean>(false);
   const [hotOnly, setHotOnly] = useState<boolean>(false);
+  // Scan results live in state so the score sort and Hot filter rerun when a scan finishes.
+  const [xrays, setXrays] = useState<Record<string, Xray>>({});
+  const [reviewIntel, setReviewIntel] = useState<Record<string, ReviewIntel>>({});
+
+  useEffect(() => {
+    const sync = () => {
+      setXrays(getAllXrays());
+      setReviewIntel(getAllReviewIntel());
+    };
+    sync();
+    window.addEventListener(XRAY_CHANGED_EVENT, sync);
+    window.addEventListener(REVIEWS_CHANGED_EVENT, sync);
+    window.addEventListener('storage', sync);
+    return () => {
+      window.removeEventListener(XRAY_CHANGED_EVENT, sync);
+      window.removeEventListener(REVIEWS_CHANGED_EVENT, sync);
+      window.removeEventListener('storage', sync);
+    };
+  }, []);
   const [selectedRatingRanges, setSelectedRatingRanges] = useState<string[]>([]);
   const [selectedReviewCountRanges, setSelectedReviewCountRanges] = useState<string[]>([]);
 
@@ -152,6 +173,8 @@ export default function Home() {
         opportunitiesOnly,
         socialPageOnly,
         hotOnly,
+        xrays,
+        reviewIntel,
         selectedCategory,
         selectedRatingRanges,
         selectedReviewCountRanges,
@@ -161,6 +184,8 @@ export default function Home() {
       opportunitiesOnly,
       socialPageOnly,
       hotOnly,
+      xrays,
+      reviewIntel,
       selectedCategory,
       selectedRatingRanges,
       selectedReviewCountRanges,
@@ -170,12 +195,6 @@ export default function Home() {
   // Export handlers. Three explicit scopes rather than one button whose meaning depends
   // on which filters happen to be on.
   const stamp = `${centerPin.lat.toFixed(3)}_${centerPin.lng.toFixed(3)}`;
-
-  const isLead = (b: BusinessPlace) =>
-    !b.hasWebsite ||
-    !b.websiteURI?.trim() ||
-    isSocialPageOnly(b.websiteURI) ||
-    isNoRealDomain(b.websiteURI);
 
   const handleExportSelected = () => {
     exportBusinessesToCSV(
@@ -193,7 +212,7 @@ export default function Home() {
   };
 
   const handleCopyClipboard = async () => {
-    const opportunities = filteredBusinesses.filter((b) => !b.hasWebsite);
+    const opportunities = filteredBusinesses.filter(isLead);
     const success = await copyOpportunitiesToClipboard(opportunities);
     if (success) {
       setCopied(true);
@@ -282,6 +301,8 @@ export default function Home() {
           opportunitiesOnly={opportunitiesOnly}
           socialPageOnly={socialPageOnly}
           hotOnly={hotOnly}
+          xrays={xrays}
+          reviewIntel={reviewIntel}
           selectedRatingRanges={selectedRatingRanges}
           selectedReviewCountRanges={selectedReviewCountRanges}
           selectedBusinessId={selectedBusiness?.id}
@@ -318,6 +339,8 @@ export default function Home() {
           isOpen={activeNavTab === 'leads' || activeNavTab === 'sites'}
           onClose={() => setActiveNavTab('drop')}
           businesses={filteredBusinesses}
+          xrays={xrays}
+          reviewIntel={reviewIntel}
           selectedBusinessId={selectedBusiness?.id}
           onBusinessSelect={setSelectedBusiness}
           onExportSelected={handleExportSelected}

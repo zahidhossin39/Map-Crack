@@ -34,6 +34,19 @@ const SOCIAL_DOMAINS = [
   'vagaro.com',
 ];
 
+/** Lowercase hostname without www., or null when the URL can't be parsed. */
+function hostOf(url?: string | null): string | null {
+  const raw = url?.trim();
+  if (!raw) return null;
+  try {
+    return new URL(/^https?:\/\//i.test(raw) ? raw : `https://${raw}`).hostname.toLowerCase().replace(/^www\./, '');
+  } catch {
+    return null;
+  }
+}
+
+const onDomain = (host: string, d: string) => host === d || host.endsWith(`.${d}`);
+
 /**
  * Checks if a business's website URI points to a social page or link-in-bio service
  * instead of an official standalone website.
@@ -43,17 +56,8 @@ const SOCIAL_DOMAINS = [
  * restaurant.menu, and any tracking query like ?utm_source=instagram.com would match too.
  */
 export function isSocialPageOnly(url?: string | null): boolean {
-  if (!url) return false;
-  const raw = url.trim();
-  if (!raw) return false;
-  try {
-    const host = new URL(/^https?:\/\//i.test(raw) ? raw : `https://${raw}`).hostname
-      .toLowerCase()
-      .replace(/^www\./, '');
-    return SOCIAL_DOMAINS.some((domain) => host === domain || host.endsWith(`.${domain}`));
-  } catch {
-    return false;
-  }
+  const host = hostOf(url);
+  return !!host && SOCIAL_DOMAINS.some((d) => onDomain(host, d));
 }
 
 /**
@@ -62,53 +66,43 @@ export function isSocialPageOnly(url?: string | null): boolean {
  * That lack of commitment — not the builder itself — is the lead signal: plenty of
  * good sites run on WordPress or Squarespace with a real domain of their own.
  */
-const NO_REAL_DOMAIN_HOSTS = [
-  'lovable.app',
-  'wixsite.com',
-  'editorx.io',
-  'squarespace.com',
-  'godaddysites.com',
-  'business.site',
-  'weebly.com',
-  'webnode.com',
-  'webflow.io',
-  'framer.website',
-  'framer.app',
-  'netlify.app',
-  'vercel.app',
-  'github.io',
-  'pages.dev',
-  'wordpress.com',
-  'blogspot.com',
-  'myshopify.com',
-  'strikingly.com',
-  'mystrikingly.com',
-  'jimdosite.com',
-  'tilda.ws',
-  'durable.co',
-  'softr.app',
-  'bubbleapps.io',
-  'glideapp.io',
-  'replit.app',
-  'onrender.com',
-];
+const BUILDER_HOSTS: Record<string, string> = {
+  'lovable.app': 'Lovable',
+  'wixsite.com': 'Wix',
+  'editorx.io': 'Wix',
+  'squarespace.com': 'Squarespace',
+  'godaddysites.com': 'GoDaddy',
+  'business.site': 'Google Business',
+  'weebly.com': 'Weebly',
+  'webnode.com': 'Webnode',
+  'webflow.io': 'Webflow',
+  'framer.website': 'Framer',
+  'framer.app': 'Framer',
+  'netlify.app': 'Netlify',
+  'vercel.app': 'Vercel',
+  'github.io': 'GitHub Pages',
+  'pages.dev': 'Cloudflare Pages',
+  'wordpress.com': 'WordPress.com',
+  'blogspot.com': 'Blogger',
+  'myshopify.com': 'Shopify',
+  'strikingly.com': 'Strikingly',
+  'mystrikingly.com': 'Strikingly',
+  'jimdosite.com': 'Jimdo',
+  'tilda.ws': 'Tilda',
+  'durable.co': 'Durable',
+  'softr.app': 'Softr',
+  'bubbleapps.io': 'Bubble',
+  'glideapp.io': 'Glide',
+  'replit.app': 'Replit',
+  'onrender.com': 'Render',
+};
 
 /**
  * True when the listed website sits on a builder's subdomain rather than its own domain.
  * Hostname-only, so it costs nothing — no need to fetch the site.
  */
 export function isNoRealDomain(url?: string | null): boolean {
-  if (!url) return false;
-  const raw = url.trim();
-  if (!raw) return false;
-  try {
-    const host = new URL(/^https?:\/\//i.test(raw) ? raw : `https://${raw}`).hostname
-      .toLowerCase()
-      .replace(/^www\./, '');
-    return NO_REAL_DOMAIN_HOSTS.some((d) => host === d || host.endsWith(`.${d}`));
-  } catch {
-    return false;
-  }
+  return getBuilderFromHost(url) !== null;
 }
 
 /**
@@ -117,47 +111,15 @@ export function isNoRealDomain(url?: string | null): boolean {
  * which needs the page fetched to identify.
  */
 export function getBuilderFromHost(url?: string | null): string | null {
-  if (!url) return null;
-  try {
-    const host = new URL(/^https?:\/\//i.test(url.trim()) ? url.trim() : `https://${url.trim()}`)
-      .hostname.toLowerCase();
-    const map: Record<string, string> = {
-      'lovable.app': 'Lovable',
-      'wixsite.com': 'Wix',
-      'editorx.io': 'Wix',
-      'squarespace.com': 'Squarespace',
-      'godaddysites.com': 'GoDaddy',
-      'business.site': 'Google Business',
-      'weebly.com': 'Weebly',
-      'webnode.com': 'Webnode',
-      'webflow.io': 'Webflow',
-      'framer.website': 'Framer',
-      'framer.app': 'Framer',
-      'netlify.app': 'Netlify',
-      'vercel.app': 'Vercel',
-      'github.io': 'GitHub Pages',
-      'pages.dev': 'Cloudflare Pages',
-      'wordpress.com': 'WordPress.com',
-      'blogspot.com': 'Blogger',
-      'myshopify.com': 'Shopify',
-      'strikingly.com': 'Strikingly',
-      'mystrikingly.com': 'Strikingly',
-      'jimdosite.com': 'Jimdo',
-      'tilda.ws': 'Tilda',
-      'durable.co': 'Durable',
-      'softr.app': 'Softr',
-      'bubbleapps.io': 'Bubble',
-      'glideapp.io': 'Glide',
-      'replit.app': 'Replit',
-      'onrender.com': 'Render',
-    };
-    for (const [d, name] of Object.entries(map)) {
-      if (host === d || host.endsWith(`.${d}`)) return name;
-    }
-    return null;
-  } catch {
-    return null;
-  }
+  const host = hostOf(url);
+  if (!host) return null;
+  const match = Object.keys(BUILDER_HOSTS).find((d) => onDomain(host, d));
+  return match ? BUILDER_HOSTS[match] : null;
+}
+
+/** A prospect worth contacting on presence alone: no site, social page only, or no real domain. */
+export function isLead(b: BusinessPlace): boolean {
+  return !b.hasWebsite || !b.websiteURI?.trim() || isSocialPageOnly(b.websiteURI) || isNoRealDomain(b.websiteURI);
 }
 
 interface MapKeyItem {

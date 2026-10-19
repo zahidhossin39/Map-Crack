@@ -4,13 +4,15 @@ import { isSocialPageOnly } from '@/lib/pindropUtils';
 import { matchesAdvancedFilters } from '@/lib/ratingFilterUtils';
 import { isValidBusinessPlace } from '@/lib/businessValidation';
 import { scoreLead, HOT_SCORE } from '@/lib/leadScore';
-import { getAllXrays } from '@/lib/xray';
-import { getAllReviewIntel } from '@/lib/reviewIntel';
+import type { Xray } from '@/lib/xray';
+import type { ReviewIntel } from '@/lib/reviewIntel';
 
 interface BusinessFilterOptions {
   opportunitiesOnly: boolean;
   socialPageOnly: boolean;
   hotOnly: boolean;
+  xrays: Record<string, Xray>;
+  reviewIntel: Record<string, ReviewIntel>;
   selectedCategory: CategoryKey;
   selectedRatingRanges: string[];
   selectedReviewCountRanges: string[];
@@ -27,14 +29,14 @@ export function filterBusinesses(
     opportunitiesOnly,
     socialPageOnly,
     hotOnly,
+    xrays,
+    reviewIntel,
     selectedCategory,
     selectedRatingRanges,
     selectedReviewCountRanges,
   }: BusinessFilterOptions
 ): BusinessPlace[] {
   // Best leads first, so the caller works top-down.
-  const xrays = getAllXrays();
-  const reviewIntel = getAllReviewIntel();
   const scores = new Map(businesses.map((b) => [b.id, scoreLead(b, xrays[b.id], reviewIntel[b.id]).score]));
   const score = (b: BusinessPlace) => scores.get(b.id) ?? 0;
 
