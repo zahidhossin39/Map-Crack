@@ -37,3 +37,23 @@ assert.ok(scored.score > scoreLead(withSite).score, 'x-ray pain should raise sco
 assert.match(scored.opener, /Meta ads/);
 assert.match(scoreLead(withSite, DEAD_XRAY).reasons.join(), /Website is down/);
 console.log('xray OK', scored.score, scored.reasons);
+
+// --- review mining ---
+import { mineReviews } from './reviewIntel';
+const now = new Date('2026-10-20T00:00:00Z');
+const r = (t: string, d = '2026-01-01T00:00:00Z') => ({ text: { text: t }, publishTime: d });
+const intel = mineReviews([
+  r('Great work but I called three times and nobody picked up, had to leave a voicemail.'),
+  r('Could not get through on the phone for days.'),
+  r('Their website was down so I could not see prices.'),
+  r('Fantastic plumber, fixed my leak fast. Would call again!'),
+], now);
+assert.strictEqual(intel.sampled, 4);
+assert.strictEqual(intel.phoneComplaints.length, 2, 'two phone complaints');
+assert.strictEqual(intel.siteComplaints.length, 1);
+assert.strictEqual(intel.lastReviewDays, 292);
+assert.strictEqual(mineReviews([r('Answered right away, super friendly.')], now).phoneComplaints.length, 0);
+const rs = scoreLead(roofer, null, intel);
+assert.match(rs.opener, /couldn't get through/);
+assert.ok(rs.reasons.some((x) => /unanswered calls/.test(x)) && rs.reasons.some((x) => /No new reviews/.test(x)));
+console.log('reviews OK', intel.phoneComplaints);

@@ -5,6 +5,7 @@ import { getAllSelectedIds } from '@/lib/selection';
 import { getAllSpeedScores } from '@/lib/pagespeed';
 import { scoreLead } from '@/lib/leadScore';
 import { getAllXrays } from '@/lib/xray';
+import { getAllReviewIntel } from '@/lib/reviewIntel';
 
 /**
  * Exports the list of businesses to a clean CSV file
@@ -20,6 +21,7 @@ export function exportBusinessesToCSV(
   const selectedIds = getAllSelectedIds();
   const speedScores = getAllSpeedScores();
   const xrays = getAllXrays();
+  const reviewIntel = getAllReviewIntel();
 
   const presenceOf = (b: BusinessPlace) => {
     if (!b.hasWebsite || !b.websiteURI?.trim()) return 'No website';
@@ -36,6 +38,7 @@ export function exportBusinessesToCSV(
     'Socials',
     'Emails',
     'Ad Pixels',
+    'Review Complaints',
     'Presence',
     'Builder',
     'Selected',
@@ -60,7 +63,7 @@ export function exportBusinessesToCSV(
   };
 
   const rows = validBusinesses.map((b) => {
-    const lead = scoreLead(b, xrays[b.id]);
+    const lead = scoreLead(b, xrays[b.id], reviewIntel[b.id]);
     const x = xrays[b.id];
     return [
     escapeCSV(b.name),
@@ -70,6 +73,7 @@ export function exportBusinessesToCSV(
     escapeCSV(x?.socials.join(' ') || ''),
     escapeCSV(x?.emails.join(' ') || ''),
     escapeCSV(x?.adPixels.join(' ') || ''),
+    escapeCSV([...(reviewIntel[b.id]?.phoneComplaints || []), ...(reviewIntel[b.id]?.siteComplaints || [])].join(' | ')),
     escapeCSV(presenceOf(b)),
     escapeCSV(getBuilderFromHost(b.websiteURI) || ''),
     escapeCSV(selectedIds[b.id] ? 'Yes' : ''),

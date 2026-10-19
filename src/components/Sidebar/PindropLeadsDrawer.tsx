@@ -11,6 +11,7 @@ import {
 import { getAllSelectedIds, SELECTION_CHANGED_EVENT } from '@/lib/selection';
 import { scoreLead, callWindow, HOT_SCORE } from '@/lib/leadScore';
 import { getAllXrays, XRAY_CHANGED_EVENT } from '@/lib/xray';
+import { getAllReviewIntel, REVIEWS_CHANGED_EVENT } from '@/lib/reviewIntel';
 import { X, Download, Copy, Check, Sparkles, ExternalLink, Star, MapPin, Trash2 } from 'lucide-react';
 
 interface PindropLeadsDrawerProps {
@@ -53,11 +54,13 @@ export const PindropLeadsDrawer: React.FC<PindropLeadsDrawerProps> = ({
     window.addEventListener('pindrop_lead_status_changed', sync);
     window.addEventListener(SELECTION_CHANGED_EVENT, sync);
     window.addEventListener(XRAY_CHANGED_EVENT, sync);
+    window.addEventListener(REVIEWS_CHANGED_EVENT, sync);
     window.addEventListener('storage', sync);
     return () => {
       window.removeEventListener('pindrop_lead_status_changed', sync);
       window.removeEventListener(SELECTION_CHANGED_EVENT, sync);
       window.removeEventListener(XRAY_CHANGED_EVENT, sync);
+      window.removeEventListener(REVIEWS_CHANGED_EVENT, sync);
       window.removeEventListener('storage', sync);
     };
   }, []);
@@ -243,7 +246,7 @@ export const PindropLeadsDrawer: React.FC<PindropLeadsDrawerProps> = ({
 };
 
 function ScoreChip({ b }: { b: BusinessPlace }) {
-  const { score } = scoreLead(b, getAllXrays()[b.id]);
+  const { score } = scoreLead(b, getAllXrays()[b.id], getAllReviewIntel()[b.id]);
   const win = callWindow(b);
   const tone =
     score >= HOT_SCORE

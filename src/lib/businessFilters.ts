@@ -5,6 +5,7 @@ import { matchesAdvancedFilters } from '@/lib/ratingFilterUtils';
 import { isValidBusinessPlace } from '@/lib/businessValidation';
 import { scoreLead, HOT_SCORE } from '@/lib/leadScore';
 import { getAllXrays } from '@/lib/xray';
+import { getAllReviewIntel } from '@/lib/reviewIntel';
 
 interface BusinessFilterOptions {
   opportunitiesOnly: boolean;
@@ -33,7 +34,8 @@ export function filterBusinesses(
 ): BusinessPlace[] {
   // Best leads first, so the caller works top-down.
   const xrays = getAllXrays();
-  const scores = new Map(businesses.map((b) => [b.id, scoreLead(b, xrays[b.id]).score]));
+  const reviewIntel = getAllReviewIntel();
+  const scores = new Map(businesses.map((b) => [b.id, scoreLead(b, xrays[b.id], reviewIntel[b.id]).score]));
   const score = (b: BusinessPlace) => scores.get(b.id) ?? 0;
 
   return businesses.filter((b) => {

@@ -1,6 +1,7 @@
 import { BusinessPlace } from '@/types/business';
 import { isSocialPageOnly, isNoRealDomain } from '@/lib/pindropUtils';
 import type { Xray } from '@/lib/xray';
+import type { ReviewIntel } from '@/lib/reviewIntel';
 
 // Weights come from docs/lead-quality-plan.md. Tuned for cold-calling owner-run businesses.
 
@@ -37,8 +38,8 @@ function isMobile(b: BusinessPlace): boolean {
   return /^\+44 ?7|^\+61 ?4/.test(b.internationalPhoneNumber || '');
 }
 
-/** xray: optional website X-ray result; without it, only Google listing data is used. */
-export function scoreLead(b: BusinessPlace, xray?: Xray | null): LeadScore {
+/** xray / reviews: optional on-demand scans; without them, only Google listing data is used. */
+export function scoreLead(b: BusinessPlace, xray?: Xray | null, reviews?: ReviewIntel | null): LeadScore {
   const reasons: string[] = [];
   const name = b.name;
   const rating = b.rating ?? 0;
@@ -112,6 +113,23 @@ export function scoreLead(b: BusinessPlace, xray?: Xray | null): LeadScore {
         score += 5;
         reasons.push('No online booking or chat');
       }
+    }
+  }
+
+  if (reviews) {
+    if (reviews.phoneComplaints.length) {
+      score += 15;
+      reasons.push('Reviews complain about unanswered calls');
+      // Evidence from their own customers beats any website observation.
+      opener = `One of your Google reviews says they couldn't get through on the phone. How many calls do you think slip past when you're on a job?`;
+    }
+    if (reviews.siteComplaints.length) {
+      score += 8;
+      reasons.push('Reviews complain about website or booking');
+    }
+    if (reviews.lastReviewDays !== null && reviews.lastReviewDays > 180) {
+      score += 5;
+      reasons.push(`No new reviews in ${Math.round(reviews.lastReviewDays / 30)} months`);
     }
   }
 

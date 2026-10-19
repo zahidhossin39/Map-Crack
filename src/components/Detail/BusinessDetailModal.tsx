@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { scoreLead, callWindow } from '@/lib/leadScore';
 import { Xray, getAllXrays, setXray, fetchXray } from '@/lib/xray';
+import { ReviewIntel, getAllReviewIntel, setReviewIntel, fetchReviewIntel } from '@/lib/reviewIntel';
 import { BusinessPlace } from '@/types/business';
 import { isSocialPageOnly, getLeadStatus, setLeadStatus, LeadStatus } from '@/lib/pindropUtils';
 import {
@@ -358,10 +359,25 @@ function LeadIntel({ business }: { business: BusinessPlace }) {
   const [xray, setXrayState] = React.useState<Xray | null>(() => getAllXrays()[business.id] ?? null);
   const [scanning, setScanning] = React.useState(false);
   const [scanFailed, setScanFailed] = React.useState(false);
+  const [reviews, setReviewsState] = React.useState<ReviewIntel | null>(() => getAllReviewIntel()[business.id] ?? null);
+  const [mining, setMining] = React.useState(false);
+  const [mineFailed, setMineFailed] = React.useState(false);
   React.useEffect(() => {
     setXrayState(getAllXrays()[business.id] ?? null);
+    setReviewsState(getAllReviewIntel()[business.id] ?? null);
     setScanFailed(false);
+    setMineFailed(false);
   }, [business.id]);
+
+  const runReviews = async () => {
+    setMining(true);
+    setMineFailed(false);
+    const result = await fetchReviewIntel(business.id);
+    setMining(false);
+    if (!result) return setMineFailed(true);
+    setReviewIntel(business.id, result);
+    setReviewsState(result);
+  };
 
   const site = business.websiteURI?.trim();
   const canScan = Boolean(site) && !isSocialPageOnly(site);
@@ -375,7 +391,7 @@ function LeadIntel({ business }: { business: BusinessPlace }) {
     setXrayState(result);
   };
 
-  const { score, reasons, opener } = scoreLead(business, xray);
+  const { score, reasons, opener } = scoreLead(business, xray, reviews);
   const win = callWindow(business);
   return (
     <div className="p-3.5 rounded-2xl bg-slate-950/70 border border-slate-800 space-y-2.5 text-xs">
@@ -420,6 +436,32 @@ function LeadIntel({ business }: { business: BusinessPlace }) {
           )}
         </div>
       )}
+      <div className="space-y-1.5">
+        <button
+          onClick={runReviews}
+          disabled={mining}
+          className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-100 font-semibold cursor-pointer"
+          title="Reads Google reviews (~$0.025 per lead)"
+        >
+          {mining ? 'Reading reviews…' : reviews ? 'Re-check reviews' : 'Check reviews'}
+        </button>
+        {mineFailed && <p className="text-rose-400">Review check failed. Try again.</p>}
+        {reviews && reviews.sampled === 0 && (
+          <p className="text-slate-400">Google returned no review text for this place (your API plan may not include reviews).</p>
+        )}
+        {reviews && reviews.sampled > 0 && (
+          <div className="text-slate-400 space-y-0.5">
+            <p>
+              {reviews.sampled} reviews read
+              {reviews.lastReviewDays !== null ? ` · latest ${reviews.lastReviewDays}d ago` : ''}
+              {!reviews.phoneComplaints.length && !reviews.siteComplaints.length ? ' · no complaints found' : ''}
+            </p>
+            {[...reviews.phoneComplaints, ...reviews.siteComplaints].map((q) => (
+              <p key={q} className="text-amber-300 italic">{q}</p>
+            ))}
+          </div>
+        )}
+      </div>
       {opener && (
         <p className="text-slate-200 italic border-l-2 border-brand-400 pl-2">&ldquo;{opener}&rdquo;</p>
       )}
