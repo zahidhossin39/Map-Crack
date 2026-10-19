@@ -4,6 +4,7 @@ import { getAllLeadStatuses, isSocialPageOnly, isNoRealDomain, getBuilderFromHos
 import { getAllSelectedIds } from '@/lib/selection';
 import { getAllSpeedScores } from '@/lib/pagespeed';
 import { scoreLead } from '@/lib/leadScore';
+import { getAllXrays } from '@/lib/xray';
 
 /**
  * Exports the list of businesses to a clean CSV file
@@ -18,6 +19,7 @@ export function exportBusinessesToCSV(
   const statuses = getAllLeadStatuses();
   const selectedIds = getAllSelectedIds();
   const speedScores = getAllSpeedScores();
+  const xrays = getAllXrays();
 
   const presenceOf = (b: BusinessPlace) => {
     if (!b.hasWebsite || !b.websiteURI?.trim()) return 'No website';
@@ -31,6 +33,9 @@ export function exportBusinessesToCSV(
     'Lead Score',
     'Why',
     'Opener',
+    'Socials',
+    'Emails',
+    'Ad Pixels',
     'Presence',
     'Builder',
     'Selected',
@@ -55,12 +60,16 @@ export function exportBusinessesToCSV(
   };
 
   const rows = validBusinesses.map((b) => {
-    const lead = scoreLead(b);
+    const lead = scoreLead(b, xrays[b.id]);
+    const x = xrays[b.id];
     return [
     escapeCSV(b.name),
     escapeCSV(lead.score),
     escapeCSV(lead.reasons.join('; ')),
     escapeCSV(lead.opener),
+    escapeCSV(x?.socials.join(' ') || ''),
+    escapeCSV(x?.emails.join(' ') || ''),
+    escapeCSV(x?.adPixels.join(' ') || ''),
     escapeCSV(presenceOf(b)),
     escapeCSV(getBuilderFromHost(b.websiteURI) || ''),
     escapeCSV(selectedIds[b.id] ? 'Yes' : ''),

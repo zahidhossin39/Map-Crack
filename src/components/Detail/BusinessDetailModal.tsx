@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { scoreLead, callWindow } from '@/lib/leadScore';
+import { Xray, getAllXrays, setXray, fetchXray } from '@/lib/xray';
 import { BusinessPlace } from '@/types/business';
 import { isSocialPageOnly, getLeadStatus, setLeadStatus, LeadStatus } from '@/lib/pindropUtils';
 import {
@@ -354,7 +355,27 @@ export const BusinessDetailModal: React.FC<BusinessDetailModalProps> = ({
 };
 
 function LeadIntel({ business }: { business: BusinessPlace }) {
-  const { score, reasons, opener } = scoreLead(business);
+  const [xray, setXrayState] = React.useState<Xray | null>(() => getAllXrays()[business.id] ?? null);
+  const [scanning, setScanning] = React.useState(false);
+  const [scanFailed, setScanFailed] = React.useState(false);
+  React.useEffect(() => {
+    setXrayState(getAllXrays()[business.id] ?? null);
+    setScanFailed(false);
+  }, [business.id]);
+
+  const site = business.websiteURI?.trim();
+  const canScan = Boolean(site) && !isSocialPageOnly(site);
+  const runXray = async () => {
+    setScanning(true);
+    setScanFailed(false);
+    const result = await fetchXray(site!);
+    setScanning(false);
+    if (!result) return setScanFailed(true);
+    setXray(business.id, result);
+    setXrayState(result);
+  };
+
+  const { score, reasons, opener } = scoreLead(business, xray);
   const win = callWindow(business);
   return (
     <div className="p-3.5 rounded-2xl bg-slate-950/70 border border-slate-800 space-y-2.5 text-xs">
@@ -371,6 +392,33 @@ function LeadIntel({ business }: { business: BusinessPlace }) {
         <p className={win.good ? 'text-emerald-400 font-semibold' : 'text-slate-400'}>
           Their time {win.localTime} · {win.good ? 'good time to call' : `best ${win.label} weekdays`}
         </p>
+      )}
+      {canScan && (
+        <div className="space-y-1.5">
+          <button
+            onClick={runXray}
+            disabled={scanning}
+            className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-100 font-semibold cursor-pointer"
+          >
+            {scanning ? 'Scanning site…' : xray ? 'Re-scan website' : 'X-ray website'}
+          </button>
+          {scanFailed && <p className="text-rose-400">Scan failed. Try again.</p>}
+          {xray && !xray.dead && (
+            <div className="text-slate-400 space-y-0.5">
+              <p>
+                {xray.builder || 'Custom'} · {xray.https ? 'HTTPS' : 'no HTTPS'} · {xray.mobileViewport ? 'mobile-ready' : 'not mobile'}
+                {xray.copyrightYear ? ` · © ${xray.copyrightYear}` : ''}
+              </p>
+              <p>
+                Booking: {xray.booking || 'none'} · Chat: {xray.chat || 'none'} · Ads: {xray.adPixels.join(', ') || 'none'}
+              </p>
+              {xray.socials.map((u) => (
+                <a key={u} href={u} target="_blank" rel="noopener noreferrer" className="block text-brand-400 hover:underline truncate">{u}</a>
+              ))}
+              {xray.emails.map((e) => <p key={e} className="text-slate-300">{e}</p>)}
+            </div>
+          )}
+        </div>
       )}
       {opener && (
         <p className="text-slate-200 italic border-l-2 border-brand-400 pl-2">&ldquo;{opener}&rdquo;</p>

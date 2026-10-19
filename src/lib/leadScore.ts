@@ -1,5 +1,6 @@
 import { BusinessPlace } from '@/types/business';
 import { isSocialPageOnly, isNoRealDomain } from '@/lib/pindropUtils';
+import type { Xray } from '@/lib/xray';
 
 // Weights come from docs/lead-quality-plan.md. Tuned for cold-calling owner-run businesses.
 
@@ -36,7 +37,8 @@ function isMobile(b: BusinessPlace): boolean {
   return /^\+44 ?7|^\+61 ?4/.test(b.internationalPhoneNumber || '');
 }
 
-export function scoreLead(b: BusinessPlace): LeadScore {
+/** xray: optional website X-ray result; without it, only Google listing data is used. */
+export function scoreLead(b: BusinessPlace, xray?: Xray | null): LeadScore {
   const reasons: string[] = [];
   const name = b.name;
   const rating = b.rating ?? 0;
@@ -76,6 +78,41 @@ export function scoreLead(b: BusinessPlace): LeadScore {
     score += 20;
     reasons.push('No own domain');
     opener = `Noticed your site's on a free builder address, not your own domain. Was that meant to be temporary?`;
+  }
+
+  if (url && xray && !isSocialPageOnly(url)) {
+    if (xray.dead) {
+      score += 28;
+      reasons.push('Website is down');
+      opener = `Tried your website from Google and it's not loading, so anyone checking you out hits a dead page. Did you know?`;
+    } else {
+      const ads = xray.adPixels.join(' + ');
+      if (ads) {
+        score += 12;
+        reasons.push(`Running ${ads} ads: has budget`);
+      }
+      if (!xray.mobileViewport) {
+        score += 12;
+        reasons.push('Site not mobile-friendly');
+        opener ||= ads
+          ? `You're paying for ${ads} ads, but your site doesn't fit a phone screen, which is where most of that traffic lands. Is that converting for you?`
+          : `Pulled your site up on my phone and it doesn't resize; most people searching for you are on mobile. Has anyone mentioned that?`;
+      }
+      if (!xray.https) {
+        score += 8;
+        reasons.push('No HTTPS: browsers show "Not secure"');
+        opener ||= `Chrome shows "Not secure" next to your website address. Has anyone told you about that?`;
+      }
+      const year = new Date().getFullYear();
+      if (xray.copyrightYear && xray.copyrightYear <= year - 2) {
+        score += 6;
+        reasons.push(`Site not updated since ${xray.copyrightYear}`);
+      }
+      if (!xray.booking && !xray.chat) {
+        score += 5;
+        reasons.push('No online booking or chat');
+      }
+    }
   }
 
   if (!b.nationalPhoneNumber && !b.internationalPhoneNumber) {

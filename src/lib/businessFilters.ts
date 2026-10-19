@@ -4,6 +4,7 @@ import { isSocialPageOnly } from '@/lib/pindropUtils';
 import { matchesAdvancedFilters } from '@/lib/ratingFilterUtils';
 import { isValidBusinessPlace } from '@/lib/businessValidation';
 import { scoreLead, HOT_SCORE } from '@/lib/leadScore';
+import { getAllXrays } from '@/lib/xray';
 
 interface BusinessFilterOptions {
   opportunitiesOnly: boolean;
@@ -31,7 +32,8 @@ export function filterBusinesses(
   }: BusinessFilterOptions
 ): BusinessPlace[] {
   // Best leads first, so the caller works top-down.
-  const scores = new Map(businesses.map((b) => [b.id, scoreLead(b).score]));
+  const xrays = getAllXrays();
+  const scores = new Map(businesses.map((b) => [b.id, scoreLead(b, xrays[b.id]).score]));
   const score = (b: BusinessPlace) => scores.get(b.id) ?? 0;
 
   return businesses.filter((b) => {

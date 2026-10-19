@@ -16,3 +16,24 @@ assert.ok(callWindow({ ...roofer, utcOffsetMinutes: -300 }, new Date('2026-10-20
 assert.ok(!callWindow({ ...roofer, utcOffsetMinutes: 0 }, new Date('2026-10-20T12:00:00Z'))!.good);
 assert.strictEqual(callWindow(roofer), null);
 console.log('leadScore OK', scoreLead(roofer));
+
+// --- X-ray detectors + scoring ---
+import { detectSignals, DEAD_XRAY } from './xray';
+const html = `<html><head><script src="https://connect.facebook.net/en_US/fbevents.js"></script></head>
+<body><a href="https://www.facebook.com/joesplumbing/">fb</a><a href="https://www.facebook.com/sharer/sharer.php?u=x">share</a>
+<a href="mailto:joe@joesplumbing.com">mail</a><img src="logo@2x.png"> © 2019 Joe's Plumbing <script src="//static.wixstatic.com/x.js"></script></body></html>`;
+const x = detectSignals(html, 'http://joesplumbing.com/');
+assert.deepStrictEqual(x.adPixels, ['Meta']);
+assert.deepStrictEqual(x.socials, ['https://www.facebook.com/joesplumbing']);
+assert.deepStrictEqual(x.emails, ['joe@joesplumbing.com']);
+assert.strictEqual(x.copyrightYear, 2019);
+assert.strictEqual(x.builder, 'Wix');
+assert.ok(!x.mobileViewport && !x.https && !x.dead);
+assert.ok(detectSignals('<p>This domain is for sale!</p>', 'https://a.com').dead);
+
+const withSite = { ...roofer, hasWebsite: true, websiteURI: 'http://joesplumbing.com' };
+const scored = scoreLead(withSite, x);
+assert.ok(scored.score > scoreLead(withSite).score, 'x-ray pain should raise score');
+assert.match(scored.opener, /Meta ads/);
+assert.match(scoreLead(withSite, DEAD_XRAY).reasons.join(), /Website is down/);
+console.log('xray OK', scored.score, scored.reasons);
