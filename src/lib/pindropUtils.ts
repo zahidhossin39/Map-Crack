@@ -1,3 +1,4 @@
+import { persist } from '@/lib/cloudSync';
 import { BusinessPlace, LeadStatus } from '@/types/business';
 export type { LeadStatus };
 
@@ -217,7 +218,7 @@ export function setLeadStatus(id: string, status: LeadStatus): void {
     } else {
       parsed[id] = status;
     }
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
+    persist(STORAGE_KEY, parsed);
     // Dispatch custom event for real-time reactive sync across components
     window.dispatchEvent(
       new CustomEvent('pindrop_lead_status_changed', {

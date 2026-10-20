@@ -1,3 +1,4 @@
+import { persist } from '@/lib/cloudSync';
 // Website X-ray: one fetch of a lead's homepage, read for sales signals.
 // detectSignals is pure so it can run on the server and in the self-check.
 
@@ -103,7 +104,7 @@ export function setXray(id: string, xray: Xray): void {
   const all = getAllXrays();
   all[id] = xray;
   try {
-    localStorage.setItem(XRAY_KEY, JSON.stringify(all));
+    persist(XRAY_KEY, all);
     window.dispatchEvent(new CustomEvent(XRAY_CHANGED_EVENT, { detail: { id } }));
   } catch (e) {
     console.warn('Failed to store xray:', e);

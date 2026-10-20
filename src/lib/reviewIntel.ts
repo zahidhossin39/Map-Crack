@@ -1,3 +1,4 @@
+import { persist } from '@/lib/cloudSync';
 // Review mining: what customers complain about in a lead's Google reviews.
 // Google only returns up to 5 reviews per place, so a hit is strong evidence and a miss proves nothing.
 
@@ -56,7 +57,7 @@ export function setReviewIntel(id: string, intel: ReviewIntel): void {
   const all = getAllReviewIntel();
   all[id] = intel;
   try {
-    localStorage.setItem(KEY, JSON.stringify(all));
+    persist(KEY, all);
     window.dispatchEvent(new CustomEvent(REVIEWS_CHANGED_EVENT, { detail: { id } }));
   } catch (e) {
     console.warn('Failed to store review intel:', e);

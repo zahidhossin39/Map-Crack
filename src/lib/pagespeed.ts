@@ -1,3 +1,4 @@
+import { persist } from '@/lib/cloudSync';
 const SPEED_KEY = 'pindrop_speed_scores';
 
 export const SPEED_CHANGED_EVENT = 'pindrop_speed_changed';
@@ -21,7 +22,7 @@ export function setSpeedScore(id: string, score: number): void {
   const current = readScores();
   current[id] = score;
   try {
-    localStorage.setItem(SPEED_KEY, JSON.stringify(current));
+    persist(SPEED_KEY, current);
     window.dispatchEvent(new CustomEvent(SPEED_CHANGED_EVENT, { detail: { id, score } }));
   } catch (e) {
     console.warn('Failed to store speed score:', e);

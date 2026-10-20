@@ -1,3 +1,4 @@
+import { persist } from '@/lib/cloudSync';
 import { LeadStatus } from '@/types/business';
 
 const SELECTION_KEY = 'pindrop_selected_ids';
@@ -29,7 +30,7 @@ export function toggleSelected(id: string): boolean {
   else delete current[id];
 
   try {
-    localStorage.setItem(SELECTION_KEY, JSON.stringify(current));
+    persist(SELECTION_KEY, current);
     window.dispatchEvent(
       new CustomEvent(SELECTION_CHANGED_EVENT, { detail: { id, selected: next } })
     );
@@ -41,7 +42,7 @@ export function toggleSelected(id: string): boolean {
 
 export function clearSelection(): void {
   if (typeof window === 'undefined') return;
-  localStorage.setItem(SELECTION_KEY, JSON.stringify({}));
+  persist(SELECTION_KEY, {});
   window.dispatchEvent(new CustomEvent(SELECTION_CHANGED_EVENT, { detail: {} }));
 }
 
@@ -107,7 +108,7 @@ export function importMarks(fileText: string): RestoreResult {
   for (const id of parsed.selected) {
     if (typeof id === 'string') selection[id] = true;
   }
-  localStorage.setItem(SELECTION_KEY, JSON.stringify(selection));
+  persist(SELECTION_KEY, selection);
 
   let statuses: Record<string, LeadStatus> = {};
   try {
@@ -120,7 +121,7 @@ export function importMarks(fileText: string): RestoreResult {
     if (status === 'none') delete statuses[id];
     else statuses[id] = status;
   }
-  localStorage.setItem(STATUS_KEY, JSON.stringify(statuses));
+  persist(STATUS_KEY, statuses);
 
   window.dispatchEvent(new CustomEvent(SELECTION_CHANGED_EVENT, { detail: {} }));
   window.dispatchEvent(new CustomEvent('pindrop_lead_status_changed', { detail: {} }));

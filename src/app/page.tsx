@@ -9,6 +9,7 @@ import { isValidBusinessPlace } from '@/lib/businessValidation';
 import { filterBusinesses } from '@/lib/businessFilters';
 import { isLead } from '@/lib/pindropUtils';
 import { getAllSelectedIds, SELECTION_CHANGED_EVENT } from '@/lib/selection';
+import { loadFromCloud } from '@/lib/cloudSync';
 import { Xray, getAllXrays, XRAY_CHANGED_EVENT } from '@/lib/xray';
 import { ReviewIntel, getAllReviewIntel, REVIEWS_CHANGED_EVENT } from '@/lib/reviewIntel';
 import { PindropTopBar } from '@/components/Search/PindropTopBar';
@@ -91,6 +92,8 @@ export default function Home() {
     // The env key is already the initial state; a saved key only fills in when there is none.
     const storedKey = localStorage.getItem('gmp_api_key');
     if (!process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY?.trim() && storedKey) setApiKey(storedKey);
+
+    loadFromCloud();
 
     const storedTheme = localStorage.getItem('pindrop_theme') as MapTheme;
     if (storedTheme === 'dark' || storedTheme === 'light') {
