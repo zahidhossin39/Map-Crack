@@ -23,6 +23,5 @@ export function proxy(req: NextRequest) {
   });
 }
 
-export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
-};
+// No matcher: the JS bundles carry the Maps key, so they are locked too. The browser
+// re-sends the password for every file automatically after the first prompt.
