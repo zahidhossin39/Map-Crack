@@ -16,7 +16,7 @@ interface CustomMarkerLayerProps {
   exploreMode?: ExploreMode;
   leadStatuses?: Record<string, LeadStatus>;
   selectedIds?: Record<string, true>;
-  onToggleSelect?: (id: string) => void;
+  onToggleSelect?: (business: BusinessPlace) => void;
   speedScores?: Record<string, number>;
   checkingIds?: Record<string, true>;
   onCheckSpeed?: (id: string, url: string) => void;
@@ -100,6 +100,8 @@ export const CustomMarkerLayer: React.FC<CustomMarkerLayerProps> = ({
                 ? 10000
                 : isSelected
                 ? 999
+                : isStarred
+                ? 800
                 : visual.category === 'client'
                 ? 700
                 : visual.category === 'talking'
@@ -128,12 +130,19 @@ export const CustomMarkerLayer: React.FC<CustomMarkerLayerProps> = ({
                   className={`absolute -inset-1 rounded-full ${visual.auraColor} opacity-60 blur-[3px] group-hover:opacity-90 animate-pulse`}
                   style={visual.category === 'social_page_only' ? { backgroundColor: '#ec4899' } : undefined}
                 />
+                {/* Your saved leads: gold ring, visible without hovering. */}
+                {isStarred && (
+                  <div className="absolute -inset-[5px] rounded-full ring-[3px] ring-amber-400 shadow-[0_0_10px_rgba(251,191,36,0.8)]" />
+                )}
                 <div
                   className={`relative w-6 h-6 rounded-full bg-gradient-to-br ${visual.pinGradient} border-2 border-white shadow-md flex items-center justify-center`}
                   style={visual.category === 'social_page_only' ? { background: 'linear-gradient(135deg, #f472b6, #ec4899)' } : undefined}
                 >
                   <div className="w-2 h-2 rounded-full bg-white/90 shadow-sm" />
                 </div>
+                {isStarred && (
+                  <Star className="absolute -top-2.5 -right-2.5 w-3.5 h-3.5 fill-amber-400 text-amber-950 drop-shadow" strokeWidth={1.5} />
+                )}
               </div>
 
               {/* Hover card. The outer wrapper's pb-3 keeps the 12px gap inside the hovered
@@ -282,7 +291,7 @@ export const CustomMarkerLayer: React.FC<CustomMarkerLayerProps> = ({
                       onClick={(e) => {
                         // The marker itself opens the detail modal on click.
                         e.stopPropagation();
-                        onToggleSelect?.(business.id);
+                        onToggleSelect?.(business);
                       }}
                       className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-bold border transition-colors cursor-pointer ${
                         isStarred
@@ -303,8 +312,9 @@ export const CustomMarkerLayer: React.FC<CustomMarkerLayerProps> = ({
               {/* Business Name Label with Rating Dots */}
               <div className="mt-1 flex flex-col items-center pointer-events-none max-w-[200px] text-center transition-all duration-150">
                 <div
-                  className={`px-2 py-0.5 rounded-full backdrop-blur-md shadow-md flex items-center justify-center gap-1.5 border transition-all bg-slate-950/85 group-hover:bg-slate-950 ${visual.labelBorderClass}`}
+                  className={`px-2 py-0.5 rounded-full backdrop-blur-md shadow-md flex items-center justify-center gap-1.5 border transition-all bg-slate-950/85 group-hover:bg-slate-950 ${isStarred ? 'border-amber-400 ring-1 ring-amber-400/60' : visual.labelBorderClass}`}
                 >
+                  {isStarred && <span className="text-amber-400 text-[10px] leading-none">★</span>}
                   <span className="text-[11px] font-bold leading-tight whitespace-normal break-words text-center">
                     {business.name}
                   </span>

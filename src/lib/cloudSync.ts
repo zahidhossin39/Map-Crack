@@ -9,6 +9,7 @@ export const SYNCED_KEYS = [
   'pindrop_xrays',
   'pindrop_review_intel',
   'pindrop_speed_scores',
+  'pindrop_saved_leads',
 ];
 
 const timers: Record<string, ReturnType<typeof setTimeout>> = {};

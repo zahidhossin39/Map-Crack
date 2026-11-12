@@ -1,10 +1,11 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
 import {
   MapPin,
   Search,
-  FolderKanban,
+  Table,
   User,
   Sun,
   Moon,
@@ -76,18 +77,14 @@ export const PindropBottomBar: React.FC<PindropBottomBarProps> = ({
             <span className="text-[11px] mt-0.5">Leads</span>
           </button>
 
-          {/* Sites Tab */}
-          <button
-            onClick={() => onTabChange('sites')}
-            className={`flex flex-col items-center px-4 py-1 rounded-full transition-all ${
-              activeTab === 'sites'
-                ? 'text-emerald-600 font-bold scale-105'
-                : 'text-slate-500 hover:text-slate-800 font-medium'
-            }`}
+          {/* Sheet: your saved leads as a spreadsheet (its own page). */}
+          <Link
+            href="/sheet"
+            className="flex flex-col items-center px-4 py-1 rounded-full transition-all text-slate-500 hover:text-slate-800 font-medium"
           >
-            <FolderKanban className="w-4 h-4" />
-            <span className="text-[11px] mt-0.5">Sites</span>
-          </button>
+            <Table className="w-4 h-4" />
+            <span className="text-[11px] mt-0.5">Sheet</span>
+          </Link>
 
           {/* You Tab */}
           <button

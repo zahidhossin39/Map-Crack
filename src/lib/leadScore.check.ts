@@ -82,3 +82,10 @@ assert.ok(!isNoRealDomain('https://joesplumbing.com'));
 assert.ok(isLead({ ...base, hasWebsite: true, websiteURI: 'https://facebook.com/joes' } as any));
 assert.ok(!isLead({ ...base, hasWebsite: true, websiteURI: 'https://joesplumbing.com' } as any));
 console.log('presence OK');
+
+import { diffBusiness } from './savedLeads';
+const before = { ...roofer, regularOpeningHours: { weekdayDescriptions: ['Mon: 9-5'] } } as any;
+assert.deepStrictEqual(diffBusiness(before, { ...before }, 1), [], 'same data = no changes');
+const after = { ...before, nationalPhoneNumber: '07700 900999', rating: 4.7, hasWebsite: true, websiteURI: 'https://smith.com' };
+assert.deepStrictEqual(diffBusiness(before, after, 1).map((c) => c.field), ['Phone', 'Website', 'Rating']);
+console.log('saved-lead diff OK');

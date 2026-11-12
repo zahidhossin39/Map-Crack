@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { BusinessPlace, LeadStatus } from '@/types/business';
 import {
   isSocialPageOnly,
@@ -22,7 +23,6 @@ interface PindropLeadsDrawerProps {
   reviewIntel: Record<string, ReviewIntel>;
   selectedBusinessId?: string | null;
   onBusinessSelect: (b: BusinessPlace) => void;
-  onExportSelected: () => void;
   onExportLeads: () => void;
   onExportAll: () => void;
   onClearAll: () => void;
@@ -38,7 +38,6 @@ export const PindropLeadsDrawer: React.FC<PindropLeadsDrawerProps> = ({
   reviewIntel,
   selectedBusinessId,
   onBusinessSelect,
-  onExportSelected,
   onExportLeads,
   onExportAll,
   onClearAll,
@@ -70,7 +69,8 @@ export const PindropLeadsDrawer: React.FC<PindropLeadsDrawerProps> = ({
   const noWebsiteList = businesses.filter((b) => !b.hasWebsite || !b.websiteURI);
   const socialOnlyList = businesses.filter((b) => isSocialPageOnly(b.websiteURI));
   const opportunities = businesses.filter(isLead);
-  const selectedCount = businesses.filter((b) => selectedIds[b.id]).length;
+  // All saved leads, not just the ones in this search: they all live in the sheet.
+  const selectedCount = Object.keys(selectedIds).length;
 
   return (
     <aside className="fixed inset-y-0 left-0 z-40 w-full sm:w-96 bg-white shadow-2xl border-r border-slate-200 flex flex-col animate-in slide-in-from-left duration-300">
@@ -130,14 +130,13 @@ export const PindropLeadsDrawer: React.FC<PindropLeadsDrawerProps> = ({
           </button>
         </div>
         <div className="grid grid-cols-3 gap-1.5">
-          <button
-            onClick={onExportSelected}
-            disabled={selectedCount === 0}
-            className="px-2 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold text-[11px] shadow-sm transition-all cursor-pointer"
-            title="Export only the businesses you starred"
+          <Link
+            href="/sheet"
+            className="px-2 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-[11px] shadow-sm transition-all cursor-pointer text-center"
+            title="Open your saved leads as a sheet (export from there)"
           >
-            Selected ({selectedCount})
-          </button>
+            Sheet ({selectedCount})
+          </Link>
           <button
             onClick={onExportLeads}
             disabled={opportunities.length === 0}

@@ -20,12 +20,22 @@ import {
   SPEED_CHANGED_EVENT,
 } from '@/lib/pagespeed';
 import { isValidBusinessPlace } from '@/lib/businessValidation';
+import {
+  SavedLead,
+  getAllSavedLeads,
+  refreshSavedLeads,
+  isStale,
+  fetchPlaceDetails,
+  SAVED_LEADS_CHANGED_EVENT,
+} from '@/lib/savedLeads';
 import { filterBusinesses } from '@/lib/businessFilters';
 import type { Xray } from '@/lib/xray';
 import type { ReviewIntel } from '@/lib/reviewIntel';
 import { Loader2, AlertCircle } from 'lucide-react';
 
 const MAX_ACCUMULATED_BUSINESSES = 500;
+// Paid Place Details calls per map stop, so a big saved list can't run up the bill in one pan.
+const MAX_RECHECKS_PER_VIEW = 5;
 
 interface MapContainerProps {
   apiKey: string;
@@ -93,6 +103,11 @@ const MapController: React.FC<MapContainerProps> = ({
   businessesRef.current = businesses;
   const [leadStatuses, setLeadStatuses] = useState<Record<string, any>>({});
   const [selectedIds, setSelectedIds] = useState<Record<string, true>>({});
+  const [savedLeads, setSavedLeads] = useState<Record<string, SavedLead>>({});
+  const savedLeadsRef = useRef(savedLeads);
+  savedLeadsRef.current = savedLeads;
+  // Ids already rechecked (or tried) this session, so a failed lookup isn't retried every pan.
+  const recheckedRef = useRef<Set<string>>(new Set());
   const [speedScores, setSpeedScores] = useState<Record<string, number>>({});
   const [checkingIds, setCheckingIds] = useState<Record<string, true>>({});
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -140,6 +155,18 @@ const MapController: React.FC<MapContainerProps> = ({
     window.addEventListener('storage', sync);
     return () => {
       window.removeEventListener(SELECTION_CHANGED_EVENT, sync);
+      window.removeEventListener('storage', sync);
+    };
+  }, []);
+
+  // Full copies of starred businesses: they stay on the map even when no search found them.
+  useEffect(() => {
+    const sync = () => setSavedLeads(getAllSavedLeads());
+    sync();
+    window.addEventListener(SAVED_LEADS_CHANGED_EVENT, sync);
+    window.addEventListener('storage', sync);
+    return () => {
+      window.removeEventListener(SAVED_LEADS_CHANGED_EVENT, sync);
       window.removeEventListener('storage', sync);
     };
   }, []);
@@ -335,6 +362,9 @@ const MapController: React.FC<MapContainerProps> = ({
       // Accumulate across searches: Google caps every search at 20 results with no
       // pagination, so sweeping an area is the only way to build a real list.
       // distanceMeters stays relative to the pin each business was found from.
+      // Starred businesses in these results get their saved copy updated for free.
+      refreshSavedLeads(mappedBusinesses, getAllSelectedIds());
+
       const validPrev = businessesRef.current.filter(isValidBusinessPlace);
       const existingIds = new Set(validPrev.map((b) => b.id));
       const newUnique = mappedBusinesses.filter((b) => !existingIds.has(b.id));
@@ -431,6 +461,8 @@ const MapController: React.FC<MapContainerProps> = ({
         distanceMeters: calculateDistanceMeters(lat, lng, p.location.lat, p.location.lng),
       }));
 
+      refreshSavedLeads(mappedBusinesses, getAllSelectedIds());
+
       const validPrev = businessesRef.current.filter(isValidBusinessPlace);
       const existingIds = new Set(validPrev.map((b) => b.id));
       const newUnique = mappedBusinesses.filter((b) => !existingIds.has(b.id));
@@ -485,6 +517,35 @@ const MapController: React.FC<MapContainerProps> = ({
     };
   }, [exploreMode, executeSearch]);
 
+  // 7-day recheck: when the map stops over saved leads whose copy is over a week old, ask
+  // Google for fresh details and record what changed. Nothing is checked while you aren't
+  // looking at that area, and leads a search just refreshed are already fresh.
+  useEffect(() => {
+    if (!map) return;
+    let timer: NodeJS.Timeout;
+    const recheck = async () => {
+      const bounds = map.getBounds();
+      if (!bounds || isAbove50km) return;
+      const due = Object.values(savedLeadsRef.current)
+        .filter((l) => isStale(l) && !recheckedRef.current.has(l.business.id))
+        .filter((l) => bounds.contains(l.business.location))
+        .slice(0, MAX_RECHECKS_PER_VIEW);
+      for (const lead of due) {
+        recheckedRef.current.add(lead.business.id);
+        const fresh = await fetchPlaceDetails(lead.business.id);
+        if (fresh) refreshSavedLeads([fresh], getAllSelectedIds(), true);
+      }
+    };
+    const idle = map.addListener('idle', () => {
+      clearTimeout(timer);
+      timer = setTimeout(recheck, 1500);
+    });
+    return () => {
+      clearTimeout(timer);
+      google.maps.event.removeListener(idle);
+    };
+  }, [map, isAbove50km]);
+
   // Click on map to drop a new pin
   const handleMapClick = useCallback(
     // Registered via map.addListener, so this is the raw Google Maps event (e.latLng),
@@ -518,7 +579,7 @@ const MapController: React.FC<MapContainerProps> = ({
     [geocodingLib, onCenterPinChange, exploreMode]
   );
 
-  const displayedBusinesses = useMemo(
+  const filteredResults = useMemo(
     () =>
       filterBusinesses(businesses, {
         opportunitiesOnly,
@@ -543,6 +604,15 @@ const MapController: React.FC<MapContainerProps> = ({
     ]
   );
 
+  // Your saved leads always show, whatever the filters and even if no search found them.
+  const displayedBusinesses = useMemo(() => {
+    const shown = new Set(filteredResults.map((b) => b.id));
+    const saved = Object.values(savedLeads)
+      .filter((l) => selectedIds[l.business.id] && !shown.has(l.business.id))
+      .map((l) => l.business);
+    return [...filteredResults, ...saved];
+  }, [filteredResults, savedLeads, selectedIds]);
+
   return (
     <>
       <MapEventListener onMapClick={handleMapClick} />
@@ -566,7 +636,7 @@ const MapController: React.FC<MapContainerProps> = ({
         exploreMode={exploreMode}
         leadStatuses={leadStatuses}
         selectedIds={selectedIds}
-        onToggleSelect={(id) => toggleSelected(id)}
+        onToggleSelect={(business) => toggleSelected(business)}
         speedScores={speedScores}
         checkingIds={checkingIds}
         onCheckSpeed={handleCheckSpeed}

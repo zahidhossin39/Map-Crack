@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { isValidBusinessPlace } from '@/lib/businessValidation';
+import { formatPlaces, PLACE_FIELDS } from '@/lib/formatPlace';
 import { resolveServerKey } from '@/lib/serverApiKey';
 
 // "All businesses" search. Google returns only 20 per search, so these are the niches that
@@ -26,58 +26,6 @@ const DEFAULT_COMMERCIAL_TYPES = [
   'real_estate_agency',
   'insurance_agency',
 ];
-
-function formatPlaces(rawPlaces: any[]) {
-  return rawPlaces
-    .map((p: any) => {
-      const website = p.websiteUri?.trim();
-      const hasWebsite = Boolean(website && website.length > 0);
-
-      const latCoord = p.location?.latitude ?? 0;
-      const lngCoord = p.location?.longitude ?? 0;
-
-      const photos =
-        p.photos?.map((ph: any) => ({
-          url: `/api/places/photo?name=${encodeURIComponent(ph.name)}&w=800`,
-          authorAttributions: ph.authorAttributions,
-        })) || [];
-
-      return {
-        id: p.id,
-        name: p.displayName?.text?.trim() || '',
-        formattedAddress: p.formattedAddress || '',
-        location: {
-          lat: latCoord,
-          lng: lngCoord,
-        },
-        hasWebsite,
-        websiteURI: hasWebsite ? website : undefined,
-        nationalPhoneNumber: p.nationalPhoneNumber || '',
-        internationalPhoneNumber: p.internationalPhoneNumber || '',
-        rating: p.rating || null,
-        userRatingCount: p.userRatingCount || 0,
-        priceLevel: p.priceLevel || null,
-        primaryType: p.primaryType || '',
-        primaryTypeDisplayName: p.primaryTypeDisplayName?.text || '',
-        types: p.types || [],
-        businessStatus: p.businessStatus || 'OPERATIONAL',
-        utcOffsetMinutes: p.utcOffsetMinutes ?? null,
-        regularOpeningHours: p.regularOpeningHours
-          ? {
-              openNow: p.regularOpeningHours.openNow,
-              weekdayDescriptions: p.regularOpeningHours.weekdayDescriptions || [],
-            }
-          : null,
-        photos,
-        googleMapsURI:
-          p.googleMapsUri ||
-          `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-            p.displayName?.text || ''
-          )}`,
-      };
-    })
-    .filter(isValidBusinessPlace);
-}
 
 export async function POST(req: NextRequest) {
   try {
@@ -107,26 +55,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const fieldMask = [
-      'places.id',
-      'places.displayName',
-      'places.location',
-      'places.formattedAddress',
-      'places.websiteUri',
-      'places.nationalPhoneNumber',
-      'places.internationalPhoneNumber',
-      'places.rating',
-      'places.userRatingCount',
-      'places.priceLevel',
-      'places.primaryType',
-      'places.primaryTypeDisplayName',
-      'places.types',
-      'places.regularOpeningHours',
-      'places.photos',
-      'places.googleMapsUri',
-      'places.businessStatus',
-      'places.utcOffsetMinutes',
-    ].join(',');
+    const fieldMask = PLACE_FIELDS.map((f) => 'places.' + f).join(',');
 
     let rawPlaces: any[] = [];
 
