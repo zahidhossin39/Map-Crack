@@ -22,7 +22,7 @@ Call `get_team_info` first. Use its `sheet_url`. If it is empty, find the spread
 It has two tabs with these header rows, exactly:
 
 - **Areas**: `Area | Niche | Last run | Notes`
-- **Leads**: `Date found | Business | Phone | Area | Niche | Lead score | Presence | Best call time | Google Maps | Map Crack | Say this (verified) | Review complaints | Call card | Sources | Found by | Status | Follow-up date | Notes`
+- **Leads**: `Date found | Business | Phone | Area | Niche | Lead score | Presence | Socials | Best call time | Google Maps | Map Crack | Say this (verified) | Review complaints | Call card | Sources | Found by | Status | Last called | Call outcome | Follow-up date | Notes`
 
 If an existing Leads tab has fewer columns, add the missing headers at the end of row 1 and
 fill those columns for your new rows only.
@@ -57,11 +57,14 @@ Only append rows. Never edit or delete anyone's existing rows, Status, Follow-up
    time, Found by (`found_by`). Links as short labels:
    - Google Maps: `=HYPERLINK("<google_maps_url>","Maps")`
    - Map Crack: `=HYPERLINK("<map_crack_url>","Open")`
+   - Socials: the business's own Facebook / Instagram / TikTok / Checkatrade / Yelp page URLs
+     from your web search, one per line. Write `none found` if there are none (that alone is a
+     useful fact: DM is not an option, call only).
    - Sources: one URL per line, plain text.
    Business name: drop any brackets or keyword stuffing Google shows after the real name.
    Status = `New` (the sheet's dropdown also has No answer, Callback, Talking, Client,
-   Not interested, Wrong number; those are for people, not the agent). Leave Follow-up date
-   and Notes empty. Don't change the sheet's formatting.
+   Not interested, Wrong number; those are for people, not the agent). Leave Last called,
+   Call outcome, Follow-up date and Notes empty: the caller fills those in. Don't change the sheet's formatting.
 7. **Record it.** `update_lead(place_id, status: "researched", research: <call card>)`, then set
    the area's Last run to today.
 8. **Report** in 3 lines: leads added, area done, Google calls left today (from `get_team_info`).
