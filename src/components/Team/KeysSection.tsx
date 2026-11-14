@@ -4,7 +4,7 @@
 // wake / remove actions, and an inline add-key form.
 
 import React, { useEffect, useId, useRef, useState } from 'react';
-import { Check, KeyRound, Loader2, Plus, RotateCcw, Trash2 } from 'lucide-react';
+import { Check, ExternalLink, KeyRound, Loader2, Plus, RotateCcw, Trash2 } from 'lucide-react';
 import {
   Badge,
   Button,
@@ -256,6 +256,24 @@ function AddKeyForm({ defaultCap, onDone, onCancel }: {
 
   return (
     <form onSubmit={submit} autoComplete="off" noValidate className="rounded-lg border border-slate-200 bg-slate-50 p-4 space-y-4">
+      <div className="rounded-lg bg-white border border-slate-200 p-3 text-sm text-slate-700">
+        <p className="font-semibold text-slate-900">Don&apos;t have a key yet? (about 3 minutes)</p>
+        <ol className="list-decimal pl-5 mt-1.5 space-y-1">
+          <li>
+            <a href="https://console.cloud.google.com/apis/library/places.googleapis.com" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 font-medium text-emerald-700 underline underline-offset-2 hover:text-emerald-800">
+              Turn on Places API (New) <ExternalLink className="w-3.5 h-3.5" aria-hidden />
+            </a>{' '}
+            in your Google Cloud project (add a billing card if asked; the free monthly calls still apply).
+          </li>
+          <li>
+            <a href="https://console.cloud.google.com/google/maps-apis/credentials" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 font-medium text-emerald-700 underline underline-offset-2 hover:text-emerald-800">
+              Create an API key <ExternalLink className="w-3.5 h-3.5" aria-hidden />
+            </a>{' '}
+            → Create credentials → API key.
+          </li>
+          <li>Restrict it to <strong>Places API (New)</strong> only, with no website restriction. Copy it and paste it below.</li>
+        </ol>
+      </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Field
           label="Name"
@@ -298,7 +316,7 @@ function AddKeyForm({ defaultCap, onDone, onCancel }: {
           value={cap}
           onChange={(e) => setCap(e.target.value)}
           disabled={submitting}
-          help={`Calls per day the team may use. Default ${defaultCap}.`}
+          help={`Calls per day the team may use. Default ${defaultCap} (about ${defaultCap * 30} a month, inside Google's free 1,000 per call type).`}
         />
       </div>
 
@@ -381,7 +399,39 @@ export default function KeysSection({ data, reload }: SectionProps) {
         )}
       </div>
 
-      <details className="mt-4 group">
+      <details className="mt-4 group" open={keys.length <= 1}>
+        <summary className="inline-flex items-center min-h-[40px] text-sm font-medium text-slate-700 hover:text-slate-900 cursor-pointer rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500">
+          What one key gets you (free calls &amp; cost)
+        </summary>
+        <div className="mt-1 text-sm text-slate-600 space-y-2">
+          <p>
+            Google gives every billing account free calls each month, <strong>per call type</strong>. The calls Map Crack makes
+            ask for phone, website and rating, which Google bills as &quot;Enterprise&quot;:{' '}
+            <strong>1,000 free per month for each type below</strong>, then the price shown.
+          </p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs border border-slate-200 rounded-lg">
+              <thead className="bg-slate-50 text-slate-600">
+                <tr><th className="text-left font-medium px-3 py-2">Call type</th><th className="text-left font-medium px-3 py-2">Used for</th><th className="text-right font-medium px-3 py-2">Free / month</th><th className="text-right font-medium px-3 py-2">After that</th></tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                <tr><td className="px-3 py-2">Text Search</td><td className="px-3 py-2">Agent lead search, map search</td><td className="px-3 py-2 text-right tabular-nums">1,000</td><td className="px-3 py-2 text-right tabular-nums">~$35 / 1,000</td></tr>
+                <tr><td className="px-3 py-2">Nearby Search</td><td className="px-3 py-2">Competitors, &quot;Search this spot&quot;</td><td className="px-3 py-2 text-right tabular-nums">1,000</td><td className="px-3 py-2 text-right tabular-nums">~$35 / 1,000</td></tr>
+                <tr><td className="px-3 py-2">Place Details</td><td className="px-3 py-2">7-day recheck of saved leads</td><td className="px-3 py-2 text-right tabular-nums">1,000</td><td className="px-3 py-2 text-right tabular-nums">~$20 / 1,000</td></tr>
+                <tr><td className="px-3 py-2">Place Details + reviews</td><td className="px-3 py-2">Review complaints</td><td className="px-3 py-2 text-right tabular-nums">1,000</td><td className="px-3 py-2 text-right tabular-nums">~$25 / 1,000</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <ul className="list-disc pl-5 space-y-1">
+            <li><strong>Safe daily cap per key: about 30.</strong> 30 a day is about 900 a month, which stays inside the free calls if most of them are one type. Up to about 100 a day can still be free when they're spread across the four types.</li>
+            <li><strong>There is no maximum.</strong> Google doesn&apos;t stop at the free limit; it bills the card. The daily cap here is the only stop, so the owner of each key picks it.</li>
+            <li>One agent lead (search + competitors + reviews) uses about 3–5 calls, so 30 calls ≈ 6–10 researched leads a day per key.</li>
+            <li>Prices are Google&apos;s list prices at the time of writing. Check <a href="https://developers.google.com/maps/billing-and-pricing/pricing" target="_blank" rel="noopener noreferrer" className="text-emerald-700 underline underline-offset-2">Google&apos;s pricing page</a> before raising a cap.</li>
+          </ul>
+        </div>
+      </details>
+
+      <details className="mt-2 group">
         <summary className="inline-flex items-center min-h-[40px] text-sm font-medium text-slate-700 hover:text-slate-900 cursor-pointer rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500">
           How fallback works
         </summary>
