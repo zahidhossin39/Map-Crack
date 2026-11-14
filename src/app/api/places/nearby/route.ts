@@ -141,7 +141,7 @@ export async function POST(req: NextRequest) {
     if (places.length === 0) {
       if (quotaExceeded) {
         warning =
-          lastError || 'Google Places daily limit reached on every key. Add a key on the Settings page.';
+          lastError || 'Google Places daily limit reached on every key. Add a key on the "Team & keys" page (/team).';
       } else if (lastError) {
         warning = `Google Places request failed: ${lastError}`;
       }

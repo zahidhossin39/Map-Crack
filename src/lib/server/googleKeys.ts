@@ -148,7 +148,7 @@ export interface GoogleInit {
  */
 export async function googlePlaces(path: string, init: GoogleInit): Promise<any> {
   const keys = await loadKeys();
-  if (!keys.length) throw new GoogleError(503, 'No Google key: add one on the Settings page or set GOOGLE_PLACES_SERVER_KEY.');
+  if (!keys.length) throw new GoogleError(503, 'No Google key: add one on the "Team & keys" page (/team) or set GOOGLE_PLACES_SERVER_KEY.');
 
   const now = Date.now();
   let capped = 0;
@@ -181,7 +181,7 @@ export async function googlePlaces(path: string, init: GoogleInit): Promise<any>
   const when = Number.isFinite(nextFree) ? ` Next key frees up at ${new Date(nextFree).toISOString().slice(11, 16)} UTC.` : '';
   throw new GoogleError(
     429,
-    `No Google key left today: ${capped} at their daily cap, ${cooling} cooling down.${when} Add a key or raise a cap on the Settings page.`
+    `No Google key left today: ${capped} at their daily cap, ${cooling} cooling down.${when} Add a key or raise a cap on the "Team & keys" page (/team).`
   );
 }
 

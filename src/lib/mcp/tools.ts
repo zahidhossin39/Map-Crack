@@ -46,7 +46,7 @@ export function createMcpServer(ctx: Ctx): McpServer {
         return {
           you: ctx.who,
           sheet_url: sheet || null,
-          ...(sheet ? {} : { note: 'No team sheet set yet. Use the spreadsheet named "Map Crack Leads", and ask the owner to paste its link on the Map Crack Settings page.' }),
+          ...(sheet ? {} : { note: 'No team sheet set yet. Use the spreadsheet named "Map Crack Leads", and ask the owner to paste its link on the Map Crack "Team & keys" page.' }),
           google_calls_today: await usageToday(),
           website: ctx.siteUrl,
         };

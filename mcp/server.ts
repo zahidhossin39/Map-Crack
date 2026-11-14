@@ -1,5 +1,5 @@
 // Map Crack MCP server, local version (stdio). For teammates, use the online one at
-// https://<your-site>/api/mcp with a token from the Settings page instead.
+// https://<your-site>/api/mcp with a token from the "Team & keys" page instead.
 // Run: npx tsx mcp/server.ts   (reads keys from .env.local in the repo root)
 
 import path from 'node:path';

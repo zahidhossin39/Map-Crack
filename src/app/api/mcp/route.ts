@@ -1,6 +1,6 @@
 // Online Map Crack MCP server. Any agent (Antigravity, Claude Code, Cursor) connects with
 //   URL:    https://<site>/api/mcp
-//   Header: Authorization: Bearer <token from the Settings page>
+//   Header: Authorization: Bearer <token from the "Team & keys" page>
 // Stateless: every request builds a fresh server, so it runs fine on Vercel functions.
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -18,7 +18,7 @@ async function handle(req: NextRequest) {
   const who = token ? await memberForToken(token) : null;
   if (!who) {
     return NextResponse.json(
-      { jsonrpc: '2.0', error: { code: -32001, message: 'Missing or wrong token. Get one on the Map Crack Settings page.' }, id: null },
+      { jsonrpc: '2.0', error: { code: -32001, message: 'Missing or wrong token. Get one on the Map Crack "Team & keys" page.' }, id: null },
       { status: 401 }
     );
   }
