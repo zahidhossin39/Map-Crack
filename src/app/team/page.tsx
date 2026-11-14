@@ -42,7 +42,8 @@ export default function TeamPage() {
   const activeKeys = data?.pool.keys.filter((k) => !k.cooling_until && k.used_today < k.daily_cap).length ?? 0;
 
   return (
-    <main className="min-h-screen bg-slate-50 text-slate-800">
+    // The body is overflow:hidden for the map, so this page scrolls inside its own container.
+    <main className="h-screen overflow-y-auto select-text bg-slate-50 text-slate-800">
       <header className="sticky top-0 z-30 bg-white/90 backdrop-blur border-b border-slate-200">
         <nav aria-label="Main" className="flex items-center gap-1 px-4 h-14 max-w-4xl mx-auto">
           <Link href="/" className={`${nav} text-slate-600 hover:text-slate-900 hover:bg-slate-100`}>
