@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "map-crack": {
+      "command": "node",
+      "args": ["node_modules/tsx/dist/cli.mjs", "--tsconfig", "tsconfig.json", "mcp/server.ts"]
+    }
+  }
+}
