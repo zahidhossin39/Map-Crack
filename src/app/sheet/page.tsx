@@ -189,7 +189,7 @@ export default function SheetPage() {
   const cell = 'border-r border-b border-slate-200 px-2 py-1.5 align-top';
 
   return (
-    <main className="min-h-screen bg-white text-slate-800 flex flex-col">
+    <main className="h-screen overflow-auto select-text bg-white text-slate-800 flex flex-col">
       {/* Toolbar */}
       <header className="sticky top-0 z-30 bg-white border-b border-slate-200">
         <div className="flex flex-wrap items-center gap-2 px-4 py-2.5">
