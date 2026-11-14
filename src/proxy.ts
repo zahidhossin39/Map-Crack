@@ -1,29 +1,26 @@
 import { NextResponse, type NextRequest } from 'next/server';
+import { AUTH_COOKIE, authToken } from '@/lib/siteAuth';
 
-// Locks the whole site (pages and /api) behind one password once it's on the internet.
-// Without it, anyone with the URL could read and change your leads in Turso and run
-// searches on your Google bill. Unset SITE_PASSWORD (local dev) = no lock.
-// shortcut: one shared password via the browser's Basic Auth prompt. Fine for one user;
-// add real accounts if other people ever need their own logins.
-export function proxy(req: NextRequest) {
+// Locks the whole site (pages, /api and the JS bundles, which carry the Maps key) behind one
+// password once it's on the internet. Unset SITE_PASSWORD (local dev) = no lock.
+// Logging in happens at /api/login: a plain HTML form with only a password box, which sets
+// a cookie. Agents use /api/mcp with their own token instead.
+const OPEN = ['/api/login', '/api/mcp', '/favicon.ico'];
+
+export async function proxy(req: NextRequest) {
   const password = process.env.SITE_PASSWORD;
   if (!password) return NextResponse.next();
-  // Agents log in to the MCP server with their own token instead (checked in the route).
-  if (req.nextUrl.pathname === '/api/mcp') return NextResponse.next();
+  const { pathname, search } = req.nextUrl;
+  if (OPEN.includes(pathname)) return NextResponse.next();
 
-  const header = req.headers.get('authorization') || '';
-  const [scheme, encoded] = header.split(' ');
-  if (scheme === 'Basic' && encoded) {
-    const decoded = atob(encoded);
-    const given = decoded.slice(decoded.indexOf(':') + 1); // any username, password must match
-    if (given === password) return NextResponse.next();
+  if (req.cookies.get(AUTH_COOKIE)?.value === (await authToken(password))) return NextResponse.next();
+
+  // Pages go to the login form; API calls and files just get refused.
+  if (req.method === 'GET' && !pathname.startsWith('/api/') && !pathname.startsWith('/_next/')) {
+    const url = req.nextUrl.clone();
+    url.pathname = '/api/login';
+    url.search = `?next=${encodeURIComponent(pathname + search)}`;
+    return NextResponse.redirect(url);
   }
-
-  return new NextResponse('Password required', {
-    status: 401,
-    headers: { 'WWW-Authenticate': 'Basic realm="Map Crack", charset="UTF-8"' },
-  });
+  return new NextResponse('Login required', { status: 401 });
 }
-
-// No matcher: the JS bundles carry the Maps key, so they are locked too. The browser
-// re-sends the password for every file automatically after the first prompt.
