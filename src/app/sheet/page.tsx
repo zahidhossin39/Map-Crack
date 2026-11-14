@@ -196,6 +196,9 @@ export default function SheetPage() {
           <Link href="/" className="flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-emerald-700">
             <ArrowLeft className="w-4 h-4" /> Map
           </Link>
+          <Link href="/team" className="text-sm font-semibold text-slate-600 hover:text-emerald-700 ml-2">
+            Team &amp; keys
+          </Link>
           <div className="w-px h-6 bg-slate-200 mx-1" />
           <div className="w-7 h-7 rounded bg-emerald-600 text-white grid place-items-center text-xs font-black">MC</div>
           <div className="mr-auto">

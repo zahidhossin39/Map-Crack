@@ -1,6 +1,28 @@
 import { NextRequest } from 'next/server';
+import { googlePlaces, googlePlacesWithKey, type GoogleInit } from '@/lib/server/googleKeys';
+import { hasDb } from '@/lib/server/db';
 
 let warned = false;
+
+export type PlacesCall = (path: string, init: GoogleInit) => Promise<any>;
+
+/**
+ * How a website request reaches Google: the caller's own key (bring-your-own from the map's
+ * settings), or the shared key pool, which falls back to teammates' keys when one runs out.
+ * The pool is only for this app's own pages, so other sites can't use it as a free proxy.
+ */
+export function placesCaller(req: NextRequest, callerKey?: string): { call: PlacesCall } | { error: 'cross-origin' | 'missing' } {
+  if (typeof callerKey === 'string' && callerKey.trim()) {
+    const k = callerKey.trim();
+    return { call: (path, init) => googlePlacesWithKey(k, path, init) };
+  }
+  if (!isSameOrigin(req)) return { error: 'cross-origin' };
+  if (hasDb()) return { call: googlePlaces };
+  // No database (local dev without Turso): just use the .env key.
+  const { key } = resolveServerKey(req);
+  if (!key) return { error: 'missing' };
+  return { call: (path, init) => googlePlacesWithKey(key, path, init) };
+}
 
 /**
  * Resolves the Google API key for a server-side Places call.

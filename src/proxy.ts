@@ -8,6 +8,8 @@ import { NextResponse, type NextRequest } from 'next/server';
 export function proxy(req: NextRequest) {
   const password = process.env.SITE_PASSWORD;
   if (!password) return NextResponse.next();
+  // Agents log in to the MCP server with their own token instead (checked in the route).
+  if (req.nextUrl.pathname === '/api/mcp') return NextResponse.next();
 
   const header = req.headers.get('authorization') || '';
   const [scheme, encoded] = header.split(' ');

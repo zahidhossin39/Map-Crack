@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { resolveServerKey } from '@/lib/serverApiKey';
+import { placesCaller } from '@/lib/serverApiKey';
 import { mineReviews } from '@/lib/reviewIntel';
 
 const PLACE_ID_PATTERN = /^[A-Za-z0-9_-]+$/;
@@ -11,20 +11,16 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid place id.' }, { status: 400 });
   }
 
-  const { key } = resolveServerKey(req);
-  if (!key) {
+  const caller = placesCaller(req);
+  if ('error' in caller) {
     return NextResponse.json({ error: 'Review service unavailable.' }, { status: 503 });
   }
 
-  const res = await fetch(`https://places.googleapis.com/v1/places/${id}`, {
-    headers: { 'X-Goog-Api-Key': key, 'X-Goog-FieldMask': 'reviews' },
-    signal: AbortSignal.timeout(15000),
-  });
-  if (!res.ok) {
-    console.error('Places reviews lookup failed:', res.status, await res.text());
-    return NextResponse.json({ error: 'Reviews not available.' }, { status: res.status });
+  try {
+    const data = await caller.call(`/places/${id}`, { fieldMask: 'reviews' });
+    return NextResponse.json(mineReviews(data.reviews || []));
+  } catch (e: any) {
+    console.error('Places reviews lookup failed:', e?.status, e?.message);
+    return NextResponse.json({ error: 'Reviews not available.' }, { status: e?.status || 502 });
   }
-
-  const data = await res.json();
-  return NextResponse.json(mineReviews(data.reviews || []));
 }

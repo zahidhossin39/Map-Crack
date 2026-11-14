@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { resolveServerKey } from '@/lib/serverApiKey';
+import { placesCaller } from '@/lib/serverApiKey';
 import { formatPlace, PLACE_FIELDS } from '@/lib/formatPlace';
 
 const PLACE_ID_PATTERN = /^[A-Za-z0-9_-]+$/;
@@ -12,25 +12,19 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid place id.' }, { status: 400 });
   }
 
-  const { key, reason } = resolveServerKey(req);
-  if (!key) {
-    return reason === 'cross-origin'
+  const caller = placesCaller(req);
+  if ('error' in caller) {
+    return caller.error === 'cross-origin'
       ? NextResponse.json({ error: 'Cross-origin requests are not allowed.' }, { status: 403 })
       : NextResponse.json({ error: 'Details service unavailable.' }, { status: 503 });
   }
 
-  const res = await fetch(`https://places.googleapis.com/v1/places/${id}`, {
-    headers: {
-      'X-Goog-Api-Key': key,
-      // Photos skipped: saved copies don't keep them.
-      'X-Goog-FieldMask': PLACE_FIELDS.filter((f) => f !== 'photos').join(','),
-    },
-    signal: AbortSignal.timeout(15000),
-  });
-  if (!res.ok) {
-    console.error('Place Details lookup failed:', res.status, await res.text());
-    return NextResponse.json({ error: 'Place details not available.' }, { status: res.status });
+  try {
+    // Photos skipped: saved copies don't keep them.
+    const raw = await caller.call(`/places/${id}`, { fieldMask: PLACE_FIELDS.filter((f) => f !== 'photos').join(',') });
+    return NextResponse.json(formatPlace(raw));
+  } catch (e: any) {
+    console.error('Place Details lookup failed:', e?.status, e?.message);
+    return NextResponse.json({ error: 'Place details not available.' }, { status: e?.status || 502 });
   }
-
-  return NextResponse.json(formatPlace(await res.json()));
 }

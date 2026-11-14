@@ -2,84 +2,30 @@
 // checks so an agent gets exactly what the website would show, plus two things an agent
 // can't do on its own: remember which leads it already found, and cap Google spend.
 
-import { createClient, type Client } from '@libsql/client';
 import { formatPlaces, formatPlace, PLACE_FIELDS } from '@/lib/formatPlace';
 import { scoreLead, callWindow } from '@/lib/leadScore';
 import { isLead, isSocialPageOnly, getBuilderFromHost } from '@/lib/pindropUtils';
 import { mineReviews } from '@/lib/reviewIntel';
 import type { BusinessPlace } from '@/types/business';
+import { getDb } from '@/lib/server/db';
+import { googlePlaces, poolStatus } from '@/lib/server/googleKeys';
+import { patchStore } from '@/lib/server/store';
 
 export const STATUSES = ['found', 'researched', 'contacted', 'talking', 'client', 'nogo'] as const;
 export type Status = (typeof STATUSES)[number];
 
-const PLACES = 'https://places.googleapis.com/v1';
-
-function googleKey(): string {
-  const key = (process.env.GOOGLE_PLACES_SERVER_KEY || process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '').trim();
-  if (!key) throw new Error('No Google key: set GOOGLE_PLACES_SERVER_KEY or NEXT_PUBLIC_GOOGLE_MAPS_API_KEY in .env.local.');
-  return key;
+/** Who is calling (team member name) and where the website lives, for links. */
+export interface Ctx {
+  who: string;
+  siteUrl: string;
 }
 
-// --- database: seen leads + daily spend ---
+const google = googlePlaces;
 
-let db: Client | null = null;
-let ready: Promise<unknown> | null = null;
-
-async function getDb(): Promise<Client> {
-  if (!db) {
-    const url = process.env.TURSO_DATABASE_URL?.trim();
-    if (!url) throw new Error('TURSO_DATABASE_URL is not set in .env.local.');
-    db = createClient({ url, authToken: process.env.TURSO_AUTH_TOKEN?.trim() });
-    // Own tables, not the app's whole-store JSON rows, so agent writes never race the browser.
-    ready = db.batch([
-      `CREATE TABLE IF NOT EXISTS mcp_leads (
-        place_id TEXT PRIMARY KEY, name TEXT NOT NULL, area TEXT, niche TEXT,
-        status TEXT NOT NULL, notes TEXT NOT NULL DEFAULT '', research TEXT NOT NULL DEFAULT '',
-        business TEXT NOT NULL, found_at INTEGER NOT NULL, updated_at INTEGER NOT NULL)`,
-      'CREATE TABLE IF NOT EXISTS mcp_usage (day TEXT PRIMARY KEY, calls INTEGER NOT NULL)',
-    ]);
-  }
-  await ready;
-  return db;
-}
-
-/** Reserve n Google calls for today, or refuse once the daily cap is hit. */
-async function spend(n: number): Promise<void> {
-  const cap = Number(process.env.MCP_DAILY_GOOGLE_CAP) || 50;
-  const day = new Date().toISOString().slice(0, 10);
-  const c = await getDb();
-  const row = await c.execute({ sql: 'SELECT calls FROM mcp_usage WHERE day = ?', args: [day] });
-  const used = Number(row.rows[0]?.calls ?? 0);
-  if (used + n > cap) {
-    throw new Error(`Daily Google call cap reached (${used}/${cap}). Try again tomorrow, or raise MCP_DAILY_GOOGLE_CAP in .env.local.`);
-  }
-  await c.execute({
-    sql: 'INSERT INTO mcp_usage (day, calls) VALUES (?, ?) ON CONFLICT(day) DO UPDATE SET calls = calls + ?',
-    args: [day, n, n],
-  });
-}
-
-export async function usageToday(): Promise<{ used: number; cap: number }> {
-  const c = await getDb();
-  const day = new Date().toISOString().slice(0, 10);
-  const row = await c.execute({ sql: 'SELECT calls FROM mcp_usage WHERE day = ?', args: [day] });
-  return { used: Number(row.rows[0]?.calls ?? 0), cap: Number(process.env.MCP_DAILY_GOOGLE_CAP) || 50 };
-}
-
-async function google(path: string, init: { method?: string; fieldMask: string; body?: unknown }) {
-  const res = await fetch(`${PLACES}${path}`, {
-    method: init.method || 'GET',
-    headers: { 'Content-Type': 'application/json', 'X-Goog-Api-Key': googleKey(), 'X-Goog-FieldMask': init.fieldMask },
-    body: init.body ? JSON.stringify(init.body) : undefined,
-    signal: AbortSignal.timeout(20000),
-  });
-  const text = await res.text();
-  if (!res.ok) {
-    let msg = text;
-    try { msg = JSON.parse(text)?.error?.message || text; } catch { /* keep raw */ }
-    throw new Error(`Google Places error ${res.status}: ${msg}`);
-  }
-  return JSON.parse(text);
+/** Today's Google calls across the whole key pool. */
+export async function usageToday() {
+  const p = await poolStatus();
+  return { used: p.used_today, calls_left: p.calls_left_today, keys: p.keys.length };
 }
 
 // --- shaping what the agent sees ---
@@ -92,7 +38,11 @@ function presenceOf(b: BusinessPlace): string {
   return `website (${b.websiteURI})`;
 }
 
-function leadView(b: BusinessPlace) {
+export function mapCrackUrl(siteUrl: string, placeId: string) {
+  return `${siteUrl.replace(/\/$/, '')}/?focus=${encodeURIComponent(placeId)}`;
+}
+
+function leadView(b: BusinessPlace, ctx: Ctx) {
   const s = scoreLead(b);
   const cw = callWindow(b);
   return {
@@ -106,6 +56,8 @@ function leadView(b: BusinessPlace) {
     review_count: b.userRatingCount ?? 0,
     presence: presenceOf(b),
     google_maps_url: b.googleMapsURI || null,
+    map_crack_url: mapCrackUrl(ctx.siteUrl, b.id),
+    found_by: ctx.who,
     lead_score: s.score,
     score_reasons: s.reasons,
     suggested_opener: s.opener,
@@ -126,7 +78,7 @@ export async function findNewLeads(opts: {
   niche: string;
   limit: number;
   noWebsiteOnly: boolean;
-}) {
+}, ctx: Ctx) {
   const c = await getDb();
   const fieldMask = [...PLACE_FIELDS.filter((f) => f !== 'photos').map((f) => `places.${f}`), 'nextPageToken'].join(',');
   const textQuery = `${opts.niche} in ${opts.area}`;
@@ -138,7 +90,6 @@ export async function findNewLeads(opts: {
 
   // Google returns 20 per page and at most 3 pages (60) per query.
   while (found.length < opts.limit && pages < 3) {
-    await spend(1);
     const data = await google('/places:searchText', {
       method: 'POST',
       fieldMask,
@@ -170,21 +121,24 @@ export async function findNewLeads(opts: {
     if (!pageToken) { exhausted = true; break; }
   }
 
-  // Remember them now, so tomorrow's run never hands the same business back.
+  // Remember them now, so nobody on the team is handed the same business again.
   const now = Date.now();
   if (found.length) {
     await c.batch(
       found.map((b) => ({
-        sql: `INSERT OR IGNORE INTO mcp_leads (place_id, name, area, niche, status, business, found_at, updated_at)
-              VALUES (?, ?, ?, ?, 'found', ?, ?, ?)`,
-        args: [b.id, b.name, opts.area, opts.niche, JSON.stringify(slim(b)), now, now],
-      }))
+        sql: `INSERT OR IGNORE INTO mcp_leads (place_id, name, area, niche, status, business, found_at, updated_at, found_by)
+              VALUES (?, ?, ?, ?, 'found', ?, ?, ?, ?)`,
+        args: [b.id, b.name, opts.area, opts.niche, JSON.stringify(slim(b)), now, now, ctx.who],
+      })),
+      'write'
     );
+    // Star them on the website too: gold pin, a row on /sheet, and the 7-day recheck.
+    await starOnWebsite(found, ctx, `${opts.niche} in ${opts.area}`);
   }
 
   return {
     query: textQuery,
-    new_leads: found.map(leadView).sort((a, b) => b.lead_score - a.lead_score),
+    new_leads: found.map((b) => leadView(b, ctx)).sort((a, b) => b.lead_score - a.lead_score),
     scanned,
     google_calls: pages,
     ...(exhausted && found.length < opts.limit
@@ -197,7 +151,6 @@ async function loadBusiness(placeId: string): Promise<BusinessPlace> {
   const c = await getDb();
   const r = await c.execute({ sql: 'SELECT business FROM mcp_leads WHERE place_id = ?', args: [placeId] });
   if (r.rows[0]) return JSON.parse(String(r.rows[0].business));
-  await spend(1);
   const raw = await google(`/places/${encodeURIComponent(placeId)}`, {
     fieldMask: PLACE_FIELDS.filter((f) => f !== 'photos').join(','),
   });
@@ -205,7 +158,6 @@ async function loadBusiness(placeId: string): Promise<BusinessPlace> {
 }
 
 export async function getReviewPain(placeId: string) {
-  await spend(1);
   const data = await google(`/places/${encodeURIComponent(placeId)}`, { fieldMask: 'displayName,reviews' });
   const reviews = data.reviews || [];
   const intel = mineReviews(reviews);
@@ -228,7 +180,6 @@ export async function getReviewPain(placeId: string) {
 export async function getCompetitors(placeId: string, limit: number, radiusM: number) {
   const me = await loadBusiness(placeId);
   if (!me.primaryType) throw new Error(`${me.name} has no Google category, so competitors can't be matched.`);
-  await spend(1);
   const data = await google('/places:searchNearby', {
     method: 'POST',
     fieldMask: PLACE_FIELDS.filter((f) => f !== 'photos').map((f) => `places.${f}`).join(','),
@@ -285,7 +236,7 @@ export async function updateLead(placeId: string, patch: { status?: Status; note
   return { updated: placeId, ...patch };
 }
 
-export async function listLeads(opts: { status?: Status; area?: string; limit: number }) {
+export async function listLeads(opts: { status?: Status; area?: string; limit: number }, ctx: Ctx) {
   const c = await getDb();
   const where: string[] = [];
   const args: (string | number)[] = [];
@@ -309,6 +260,8 @@ export async function listLeads(opts: { status?: Status; area?: string; limit: n
         presence: presenceOf(b),
         lead_score: scoreLead(b).score,
         google_maps_url: b.googleMapsURI || null,
+        map_crack_url: mapCrackUrl(ctx.siteUrl, String(row.place_id)),
+        found_by: row.found_by || null,
         notes: row.notes,
         research: row.research,
         found: new Date(Number(row.found_at)).toISOString().slice(0, 10),
@@ -317,9 +270,57 @@ export async function listLeads(opts: { status?: Status; area?: string; limit: n
   };
 }
 
-/** Test helper: forget leads (used only by the self-test). */
+async function starOnWebsite(found: BusinessPlace[], ctx: Ctx, search: string) {
+  const now = Date.now();
+  const saved: Record<string, unknown> = {};
+  const stars: Record<string, true> = {};
+  for (const b of found) {
+    saved[b.id] = { business: slim(b), savedAt: now, checkedAt: now, notes: `Found by ${ctx.who}'s agent (${search})`, changes: [] };
+    stars[b.id] = true;
+  }
+  await patchStore('pindrop_saved_leads', { set: saved });
+  await patchStore('pindrop_selected_ids', { set: stars });
+}
+
+// --- area claims: two agents never work the same town + niche at once ---
+
+const CLAIM_MS = 2 * 3600_000;
+
+export async function claimArea(area: string, niche: string, ctx: Ctx) {
+  const c = await getDb();
+  const key = `${area.trim().toLowerCase()}|${niche.trim().toLowerCase()}`;
+  const now = Date.now();
+  // One statement, so two agents racing for the same row can't both win.
+  const rs = await c.execute({
+    sql: `INSERT INTO area_claims (area_key, area, niche, claimed_by, claimed_at) VALUES (?, ?, ?, ?, ?)
+          ON CONFLICT(area_key) DO UPDATE SET claimed_by = excluded.claimed_by, claimed_at = excluded.claimed_at
+          WHERE area_claims.claimed_by = excluded.claimed_by OR area_claims.claimed_at < ?
+          RETURNING claimed_by`,
+    args: [key, area.trim(), niche.trim(), ctx.who, now, now - CLAIM_MS],
+  });
+  if (rs.rows.length) return { claimed: true, area, niche, until: new Date(now + CLAIM_MS).toISOString() };
+  const cur = await c.execute({ sql: 'SELECT claimed_by, claimed_at FROM area_claims WHERE area_key = ?', args: [key] });
+  const by = String(cur.rows[0]?.claimed_by ?? 'someone');
+  const at = Number(cur.rows[0]?.claimed_at ?? now);
+  return {
+    claimed: false,
+    area,
+    niche,
+    claimed_by: by,
+    note: `${by}'s agent is working this area until ${new Date(at + CLAIM_MS).toISOString().slice(11, 16)} UTC. Pick another Areas row.`,
+  };
+}
+
+/** Test helper: forget leads and their website stars (used only by the self-test). */
 export async function forgetLeads(placeIds: string[]) {
   if (!placeIds.length) return;
   const c = await getDb();
   await c.execute({ sql: `DELETE FROM mcp_leads WHERE place_id IN (${placeIds.map(() => '?').join(',')})`, args: placeIds });
+  await patchStore('pindrop_saved_leads', { del: placeIds });
+  await patchStore('pindrop_selected_ids', { del: placeIds });
+}
+
+export async function releaseArea(area: string, niche: string) {
+  const c = await getDb();
+  await c.execute({ sql: 'DELETE FROM area_claims WHERE area_key = ?', args: [`${area.trim().toLowerCase()}|${niche.trim().toLowerCase()}`] });
 }
