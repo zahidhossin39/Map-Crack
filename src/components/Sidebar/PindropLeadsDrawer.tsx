@@ -132,7 +132,7 @@ export const PindropLeadsDrawer: React.FC<PindropLeadsDrawerProps> = ({
         <div className="grid grid-cols-3 gap-1.5">
           <Link
             href="/sheet"
-            className="px-2 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-[11px] shadow-sm transition-all cursor-pointer text-center"
+            className="px-2 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-[11px] shadow-sm transition-all cursor-pointer text-center"
             title="Open your saved leads as a sheet (export from there)"
           >
             Sheet ({selectedCount})
