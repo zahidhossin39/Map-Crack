@@ -52,10 +52,16 @@ Only append rows. Never edit or delete anyone's existing rows, Status, Follow-up
    - **OFFER** — the matching service: no website → simple site; social page only → site that
      their page links to; complaints about not answering → add the AI receptionist.
    - **CHECK BEFORE SAYING** — any claim without a source URL.
-6. **Append one Leads row per business.** From `find_new_leads`: Phone, Lead score, Presence,
-   Best call time, Google Maps (`google_maps_url`), Map Crack (`map_crack_url`), Found by
-   (`found_by`). Status = `New`. Leave Follow-up date and Notes empty. Put every URL you relied
-   on in Sources.
+6. **Append one Leads row per business** with value input option `USER_ENTERED` (so links
+   become clickable). From `find_new_leads`: Phone, Lead score (a number), Presence, Best call
+   time, Found by (`found_by`). Links as short labels:
+   - Google Maps: `=HYPERLINK("<google_maps_url>","Maps")`
+   - Map Crack: `=HYPERLINK("<map_crack_url>","Open")`
+   - Sources: one URL per line, plain text.
+   Business name: drop any brackets or keyword stuffing Google shows after the real name.
+   Status = `New` (the sheet's dropdown also has No answer, Callback, Talking, Client,
+   Not interested, Wrong number; those are for people, not the agent). Leave Follow-up date
+   and Notes empty. Don't change the sheet's formatting.
 7. **Record it.** `update_lead(place_id, status: "researched", research: <call card>)`, then set
    the area's Last run to today.
 8. **Report** in 3 lines: leads added, area done, Google calls left today (from `get_team_info`).
