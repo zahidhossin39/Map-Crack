@@ -20,7 +20,7 @@ export interface PoolKey {
   from_env: boolean;
 }
 export interface TeamData {
-  pool: { day: string; keys: PoolKey[]; calls_left_today: number; used_today: number };
+  pool: { day: string; keys: PoolKey[]; calls_left_today: number; used_today: number; cap_today: number; month: string; used_month: number; free_month: number };
   members: { name: string; created_at: number }[];
   sheet_url: string;
   mcp_url: string;
@@ -198,15 +198,15 @@ export function Badge({ tone, children }: { tone: 'green' | 'amber' | 'slate' | 
 }
 
 /** used / cap bar. Turns amber past 80 %, slate when full. */
-export function UsageBar({ used, cap }: { used: number; cap: number }) {
+export function UsageBar({ used, cap, period = 'today' }: { used: number; cap: number; period?: string }) {
   const pct = cap > 0 ? Math.min(100, Math.round((used / cap) * 100)) : 100;
   const color = pct >= 100 ? 'bg-slate-400' : pct >= 80 ? 'bg-amber-500' : 'bg-emerald-500';
   return (
     <div className="min-w-[120px]">
       <div className="flex justify-between text-xs text-slate-600 mb-1">
-        <span><span className="font-semibold text-slate-900 tabular-nums">{used}</span> / <span className="tabular-nums">{cap}</span> today</span>
+        <span><span className="font-semibold text-slate-900 tabular-nums">{used}</span> / <span className="tabular-nums">{cap.toLocaleString()}</span> {period}</span>
       </div>
-      <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden" role="progressbar" aria-valuenow={used} aria-valuemin={0} aria-valuemax={cap} aria-label="Calls used today">
+      <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden" role="progressbar" aria-valuenow={used} aria-valuemin={0} aria-valuemax={cap} aria-label={`Calls used ${period}`}>
         <div className={`h-full rounded-full transition-[width] duration-300 ${color}`} style={{ width: `${pct}%` }} />
       </div>
     </div>
@@ -218,16 +218,19 @@ export function UsageBar({ used, cap }: { used: number; cap: number }) {
 export function CopyBlock({ text, label = 'Copy' }: { text: string; label?: string }) {
   const [done, setDone] = useState(false);
   return (
-    <div className="relative">
-      <pre className="text-xs leading-5 bg-slate-900 text-slate-100 rounded-lg p-4 pr-24 overflow-x-auto">{text}</pre>
-      <button
-        type="button"
-        onClick={() => navigator.clipboard.writeText(text).then(() => { setDone(true); setTimeout(() => setDone(false), 1800); })}
-        className="absolute top-2 right-2 inline-flex items-center gap-1.5 min-h-[36px] px-3 rounded-md text-xs font-semibold bg-white/10 text-white hover:bg-white/20 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
-      >
-        {done ? <Check className="w-3.5 h-3.5" aria-hidden /> : <Copy className="w-3.5 h-3.5" aria-hidden />}
-        <span aria-live="polite">{done ? 'Copied' : label}</span>
-      </button>
+    <div className="rounded-lg border border-slate-200 bg-slate-50 overflow-hidden">
+      <div className="flex items-center justify-between gap-2 px-3 py-1.5 border-b border-slate-200 bg-white">
+        <span className="text-xs font-medium text-slate-500">Text to paste</span>
+        <button
+          type="button"
+          onClick={() => navigator.clipboard.writeText(text).then(() => { setDone(true); setTimeout(() => setDone(false), 1800); })}
+          className={`inline-flex items-center gap-1.5 min-h-[34px] px-3 rounded-md text-xs font-semibold cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${done ? 'bg-emerald-600 text-white' : 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100'}`}
+        >
+          {done ? <Check className="w-3.5 h-3.5" aria-hidden /> : <Copy className="w-3.5 h-3.5" aria-hidden />}
+          <span aria-live="polite">{done ? 'Copied' : label}</span>
+        </button>
+      </div>
+      <pre className="text-[13px] leading-6 text-slate-800 font-mono p-3 whitespace-pre-wrap break-words">{text}</pre>
     </div>
   );
 }

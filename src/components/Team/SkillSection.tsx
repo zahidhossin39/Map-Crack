@@ -22,7 +22,7 @@ export default function SkillSection() {
       }
     >
       <ol className="list-decimal pl-5 space-y-2 text-sm text-slate-700">
-        <li>Connect the Map Crack server first (Teammates&apos; agents, below).</li>
+        <li>Connect the Map Crack server first (Teammates&apos; agents, above).</li>
         <li>
           Paste this into your agent (Antigravity, Claude Code, Cursor):
           <div className="mt-2"><CopyBlock text={prompt} label="Copy" /></div>

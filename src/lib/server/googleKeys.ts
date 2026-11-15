@@ -10,6 +10,8 @@ import { getDb } from './db';
 const PLACES = 'https://places.googleapis.com/v1';
 export const MAX_KEYS = 20;
 export const DEFAULT_CAP = 30;
+/** Google's free calls per key per month, per call type (Enterprise fields). */
+export const FREE_PER_MONTH = 1000;
 
 export class GoogleError extends Error {
   constructor(public status: number, message: string) {
@@ -202,6 +204,8 @@ export async function poolStatus() {
   const day = pacificDay();
   const rs = await c.execute({ sql: 'SELECT key_id, calls FROM key_usage WHERE day = ?', args: [day] });
   const used = Object.fromEntries(rs.rows.map((r) => [String(r.key_id), Number(r.calls)]));
+  const ms = await c.execute({ sql: 'SELECT SUM(calls) AS n FROM key_usage WHERE day LIKE ?', args: [`${day.slice(0, 7)}-%`] });
+  const monthUsed = Number(ms.rows[0]?.n ?? 0);
   const now = Date.now();
   const list = keys.map((k) => ({
     id: k.id,
@@ -220,6 +224,10 @@ export async function poolStatus() {
     keys: list,
     calls_left_today: usable.reduce((n, k) => n + Math.max(0, k.daily_cap - k.used_today), 0),
     used_today: list.reduce((n, k) => n + k.used_today, 0),
+    cap_today: list.reduce((n, k) => n + k.daily_cap, 0),
+    month: day.slice(0, 7),
+    used_month: monthUsed,
+    free_month: list.length * FREE_PER_MONTH,
   };
 }
 

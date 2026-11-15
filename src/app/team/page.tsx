@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Loader2 } from 'lucide-react';
-import { InlineError, type TeamData } from '@/components/Team/ui';
+import { InlineError, UsageBar, type TeamData } from '@/components/Team/ui';
 import KeysSection from '@/components/Team/KeysSection';
 import SheetSection from '@/components/Team/SheetSection';
 import TeamSection from '@/components/Team/TeamSection';
@@ -71,8 +71,21 @@ export default function TeamPage() {
 
         {data && (
           <>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <Stat label="Calls left today" value={data.pool.calls_left_today} hint={`${data.pool.used_today} used · resets midnight Pacific`} />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="bg-white border border-slate-200 rounded-xl px-4 py-3 shadow-sm">
+                <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Today (all keys)</p>
+                <p className="text-sm text-slate-600 mt-1 mb-2"><span className="text-2xl font-semibold text-slate-900 tabular-nums">{data.pool.calls_left_today}</span> calls left · resets midnight Pacific</p>
+                <UsageBar used={data.pool.used_today} cap={data.pool.cap_today} />
+                <p className="text-xs text-slate-500 mt-1.5">Sum of every key&apos;s daily cap.</p>
+              </div>
+              <div className="bg-white border border-slate-200 rounded-xl px-4 py-3 shadow-sm">
+                <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">This month (all keys)</p>
+                <p className="text-sm text-slate-600 mt-1 mb-2"><span className="text-2xl font-semibold text-slate-900 tabular-nums">{Math.max(0, data.pool.free_month - data.pool.used_month).toLocaleString()}</span> free calls left</p>
+                <UsageBar used={data.pool.used_month} cap={data.pool.free_month} period="this month" />
+                <p className="text-xs text-slate-500 mt-1.5">About 1,000 free per key per month ({data.pool.keys.length} {data.pool.keys.length === 1 ? 'key' : 'keys'}). Past that, Google bills the key&apos;s owner.</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
               <Stat label="Keys ready" value={`${activeKeys} / ${data.pool.keys.length}`} hint={`Up to ${data.max_keys} keys`} />
               <Stat label="Teammates" value={data.members.length} hint={data.members.length ? data.members.map((m) => m.name).join(', ') : 'None yet'} />
             </div>
