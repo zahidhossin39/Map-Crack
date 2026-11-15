@@ -15,7 +15,7 @@ For every lead:
 - Fill Address, Rating and Reviews from find_new_leads.
 - Run get_competitors and get_review_pain.
 - Web search the business name + town for their Facebook, Instagram, TikTok, Checkatrade or Yelp page. Put their own page links in Socials (or "none found") and every URL you used in Sources.
-- Write the call card from verified facts only.
+- Write SAY, ASK and OFFER as one plain sentence each in their own columns (no labels), SAY from verified facts only.
 
 Read the Leads header row first and match values to headers by name.
 Only append rows. Never edit or delete existing rows, Status, Last called, Call outcome, Follow-up date or Notes, and don't change formatting.

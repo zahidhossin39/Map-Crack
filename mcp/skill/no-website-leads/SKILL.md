@@ -22,7 +22,7 @@ Call `get_team_info` first. Use its `sheet_url`. If it is empty, find the spread
 It has two tabs with these header rows, exactly:
 
 - **Areas**: `Area | Niche | Last run | Notes`
-- **Leads**: `Date found | Business | Phone | Address | Area | Niche | Lead score | Rating | Reviews | Presence | Socials | Best call time (their local) | Google Maps | Map Crack | Say this (verified) | Review complaints | Call card | Sources | Found by | Status | Last called | Call outcome | Follow-up date | Notes`
+- **Leads**: `Date found | Business | Phone | Address | Area | Niche | Lead score | Rating | Reviews | Presence | Socials | Best call time (their local) | Google Maps | Map Crack | SAY | ASK | OFFER | Review complaints | Sources | Found by | Status | Last called | Call outcome | Follow-up date | Notes`
 
 Read row 1 of the Leads tab before writing and put each value under its header by name, so a
 re-ordered sheet still lines up.
@@ -47,14 +47,15 @@ Only append rows. Never edit or delete anyone's existing rows, Status, Follow-up
      review text; then write "none returned", never invent any.
    - Web search the business name + area for a Facebook / Instagram page, Checkatrade / Yelp /
      Nextdoor listing, and what services they advertise. Keep the URL of everything you use.
-5. **Write the call card** (max 6 short lines):
-   - **SAY** — one opener built from a verified gap line, e.g. "Three roofers near you have
-     websites with online quotes; when people search for a roofer in Leeds, they get those first."
+5. **Write the call card** as three short lines (one sentence each, no labels inside):
+   - **SAY** — the opener, built only from verified gap lines, e.g. "Three roofers near you
+     have websites with online quotes; when people search for a roofer in Leeds, they see those
+     first." No claim that a tool or a source URL didn't give you.
    - **ASK** — one soft question, e.g. "How do most of your jobs come in right now, word of
      mouth?" Never say "I saw your reviews say…".
    - **OFFER** — the matching service: no website → simple site; social page only → site that
-     their page links to; complaints about not answering → add the AI receptionist.
-   - **CHECK BEFORE SAYING** — any claim without a source URL.
+     their page links to; complaints about not answering → add the AI receptionist; few reviews
+     → add automatic review requests.
 6. **Append one Leads row per business** with value input option `USER_ENTERED` (so links
    become clickable). Every column, exactly like this:
    - Date found: today, `YYYY-MM-DD`.
@@ -75,16 +76,16 @@ Only append rows. Never edit or delete anyone's existing rows, Status, Follow-up
      `7:00–8:30, 16:30–18:00 (UK)`. It's the business's local time.
    - Google Maps: `=HYPERLINK("<google_maps_url>","Maps")`.
    - Map Crack: `=HYPERLINK("<map_crack_url>","Open")`.
-   - Say this (verified): the one strongest verified gap line, as a sentence to say.
+   - SAY, ASK, OFFER: the three call-card sentences, one per column, plain text with no
+     "SAY:" label (the sheet's columns are already bold and sized for reading).
    - Review complaints: short quotes, or `none returned`.
-   - Call card: the SAY / ASK / OFFER / CHECK lines, each on its own line.
    - Sources: every URL you relied on, one per line, plain text.
    - Found by: `found_by`. Status: `New` (the dropdown's other words, No answer, Callback,
      Talking, Client, Not interested, Wrong number, are for people, not the agent).
    - Last called, Call outcome, Follow-up date, Notes: leave empty; the caller fills them in.
    Don't change the sheet's formatting, and never put a value in a column whose header you
    didn't find.
-7. **Record it.** `update_lead(place_id, status: "researched", research: <call card>)`, then set
+7. **Record it.** `update_lead(place_id, status: "researched", research: "SAY: … ASK: … OFFER: …")`, then set
    the area's Last run to today.
 8. **Report** in 3 lines: leads added, area done, Google calls left today (from `get_team_info`).
 
