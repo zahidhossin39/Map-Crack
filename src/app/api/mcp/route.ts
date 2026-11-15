@@ -41,5 +41,15 @@ async function handle(req: NextRequest) {
 }
 
 export const POST = handle;
-export const GET = handle;
-export const DELETE = handle;
+
+// Stateless server: no standalone SSE stream (GET) and no sessions to end (DELETE).
+// Per the Streamable HTTP spec, 405 tells clients to just use POST. Without this, GET opened an
+// empty stream that closed at once, and clients like Antigravity retried and then disconnected.
+function notAllowed() {
+  return NextResponse.json(
+    { jsonrpc: '2.0', error: { code: -32000, message: 'Method not allowed. This server is stateless: use POST.' }, id: null },
+    { status: 405, headers: { Allow: 'POST' } }
+  );
+}
+export const GET = notAllowed;
+export const DELETE = notAllowed;
