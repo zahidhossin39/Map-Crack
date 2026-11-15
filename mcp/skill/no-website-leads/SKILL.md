@@ -22,7 +22,10 @@ Call `get_team_info` first. Use its `sheet_url`. If it is empty, find the spread
 It has two tabs with these header rows, exactly:
 
 - **Areas**: `Area | Niche | Last run | Notes`
-- **Leads**: `Date found | Business | Phone | Area | Niche | Lead score | Presence | Socials | Best call time | Google Maps | Map Crack | Say this (verified) | Review complaints | Call card | Sources | Found by | Status | Last called | Call outcome | Follow-up date | Notes`
+- **Leads**: `Date found | Business | Phone | Address | Area | Niche | Lead score | Rating | Reviews | Presence | Socials | Best call time (their local) | Google Maps | Map Crack | Say this (verified) | Review complaints | Call card | Sources | Found by | Status | Last called | Call outcome | Follow-up date | Notes`
+
+Read row 1 of the Leads tab before writing and put each value under its header by name, so a
+re-ordered sheet still lines up.
 
 If an existing Leads tab has fewer columns, add the missing headers at the end of row 1 and
 fill those columns for your new rows only.
@@ -53,18 +56,34 @@ Only append rows. Never edit or delete anyone's existing rows, Status, Follow-up
      their page links to; complaints about not answering → add the AI receptionist.
    - **CHECK BEFORE SAYING** — any claim without a source URL.
 6. **Append one Leads row per business** with value input option `USER_ENTERED` (so links
-   become clickable). From `find_new_leads`: Phone, Lead score (a number), Presence, Best call
-   time, Found by (`found_by`). Links as short labels:
-   - Google Maps: `=HYPERLINK("<google_maps_url>","Maps")`
-   - Map Crack: `=HYPERLINK("<map_crack_url>","Open")`
+   become clickable). Every column, exactly like this:
+   - Date found: today, `YYYY-MM-DD`.
+   - Business: the real name; drop brackets or keyword stuffing after it
+     (`JPC Roofing (roof repairs Leeds)` → `JPC Roofing`).
+   - Phone: `phone_international` (with the country code), written with a leading apostrophe so
+     Sheets keeps it as text: `'+44 7731 616123`. Without the apostrophe it shows #ERROR!.
+     If there is no international number, use `phone` the same way.
+   - Address: `address` without the trailing country.
+   - Area, Niche: the Areas row you worked.
+   - Lead score: `lead_score` as a plain number. Rating: `rating` as a number (e.g. `4.8`,
+     empty if null). Reviews: `review_count` as a number.
+   - Presence: `presence`.
    - Socials: the business's own Facebook / Instagram / TikTok / Checkatrade / Yelp page URLs
-     from your web search, one per line. Write `none found` if there are none (that alone is a
-     useful fact: DM is not an option, call only).
-   - Sources: one URL per line, plain text.
-   Business name: drop any brackets or keyword stuffing Google shows after the real name.
-   Status = `New` (the sheet's dropdown also has No answer, Callback, Talking, Client,
-   Not interested, Wrong number; those are for people, not the agent). Leave Last called,
-   Call outcome, Follow-up date and Notes empty: the caller fills those in. Don't change the sheet's formatting.
+     from your web search, one per line. Write `none found` if you searched and found none
+     (that alone is useful: DM is not an option, call only).
+   - Best call time (their local): `call_window.best_windows` plus the country, e.g.
+     `7:00–8:30, 16:30–18:00 (UK)`. It's the business's local time.
+   - Google Maps: `=HYPERLINK("<google_maps_url>","Maps")`.
+   - Map Crack: `=HYPERLINK("<map_crack_url>","Open")`.
+   - Say this (verified): the one strongest verified gap line, as a sentence to say.
+   - Review complaints: short quotes, or `none returned`.
+   - Call card: the SAY / ASK / OFFER / CHECK lines, each on its own line.
+   - Sources: every URL you relied on, one per line, plain text.
+   - Found by: `found_by`. Status: `New` (the dropdown's other words, No answer, Callback,
+     Talking, Client, Not interested, Wrong number, are for people, not the agent).
+   - Last called, Call outcome, Follow-up date, Notes: leave empty; the caller fills them in.
+   Don't change the sheet's formatting, and never put a value in a column whose header you
+   didn't find.
 7. **Record it.** `update_lead(place_id, status: "researched", research: <call card>)`, then set
    the area's Last run to today.
 8. **Report** in 3 lines: leads added, area done, Google calls left today (from `get_team_info`).
