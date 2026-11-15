@@ -6,6 +6,7 @@ import {
   MapPin,
   Search,
   Table,
+  Users,
   User,
   Sun,
   Moon,
@@ -84,6 +85,15 @@ export const PindropBottomBar: React.FC<PindropBottomBarProps> = ({
           >
             <Table className="w-4 h-4" />
             <span className="text-[11px] mt-0.5">Sheet</span>
+          </Link>
+
+          {/* Team: keys, teammates and the agent skill. */}
+          <Link
+            href="/team"
+            className="flex flex-col items-center px-4 py-1 rounded-full transition-all text-slate-500 hover:text-slate-800 font-medium"
+          >
+            <Users className="w-4 h-4" />
+            <span className="text-[11px] mt-0.5">Team</span>
           </Link>
 
           {/* You Tab */}

@@ -6,12 +6,14 @@ import { AUTH_COOKIE, authToken } from '@/lib/siteAuth';
 // Logging in happens at /api/login: a plain HTML form with only a password box, which sets
 // a cookie. Agents use /api/mcp with their own token instead.
 const OPEN = ['/api/login', '/api/mcp', '/favicon.ico'];
+// The agent skill is public instructions (no secrets), so teammates' agents can fetch it.
+const OPEN_PREFIXES = ['/skills/'];
 
 export async function proxy(req: NextRequest) {
   const password = process.env.SITE_PASSWORD;
   if (!password) return NextResponse.next();
   const { pathname, search } = req.nextUrl;
-  if (OPEN.includes(pathname)) return NextResponse.next();
+  if (OPEN.includes(pathname) || OPEN_PREFIXES.some((p) => pathname.startsWith(p))) return NextResponse.next();
 
   if (req.cookies.get(AUTH_COOKIE)?.value === (await authToken(password))) return NextResponse.next();
 

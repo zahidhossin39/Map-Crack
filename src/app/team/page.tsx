@@ -7,6 +7,7 @@ import { InlineError, type TeamData } from '@/components/Team/ui';
 import KeysSection from '@/components/Team/KeysSection';
 import SheetSection from '@/components/Team/SheetSection';
 import TeamSection from '@/components/Team/TeamSection';
+import SkillSection from '@/components/Team/SkillSection';
 
 function Stat({ label, value, hint }: { label: string; value: React.ReactNode; hint?: string }) {
   return (
@@ -78,6 +79,7 @@ export default function TeamPage() {
             <KeysSection data={data} reload={reload} />
             <SheetSection data={data} reload={reload} />
             <TeamSection data={data} reload={reload} />
+            <SkillSection />
           </>
         )}
       </div>

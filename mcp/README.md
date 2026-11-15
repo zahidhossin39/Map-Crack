@@ -33,7 +33,7 @@ their agent's MCP config (Antigravity: `~/.gemini/config/mcp_config.json`):
 
 `.mcp.json` in the repo root already has it for Claude Code. `MAP_CRACK_MEMBER` sets your name.
 
-The daily workflow for the agent is the skill in `skill/no-website-leads/SKILL.md`.
+The daily workflow for the agent is the skill in `public/skills/no-website-leads/SKILL.md` (served at https://map-crack.vercel.app/skills/no-website-leads/SKILL.md; the link is on /team).
 
 ## Test
 - `npm run mcp:test` starts the server and calls every tool (~8 Google calls, cleans up after).
