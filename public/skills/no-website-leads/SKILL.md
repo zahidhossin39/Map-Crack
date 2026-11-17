@@ -1,6 +1,6 @@
 ---
 name: no-website-leads
-description: Find local businesses with no website, research them, and add call-ready rows to the team's "Map Crack Leads" Google Sheet. Use for the daily lead run, or when asked to find, research or add no-website prospects for a town and niche. Needs the map-crack MCP server and Google Sheets access (Composio).
+description: Find local businesses with no website, research them, and add call-ready rows to the team's "Map Crack Leads" Google Sheet; also audit the businesses that do have a website and add the weak ones as redesign/automation leads. Use for the daily lead run, or when asked to find, research or add prospects for a town and niche. Needs the map-crack MCP server, Google Sheets access (Composio) and the website-audit skill.
 ---
 
 # No-website lead run
@@ -19,12 +19,13 @@ people, and `claim_area` stops two agents from working the same town at the same
 
 Call `get_team_info` first. Use its `sheet_url`. If it is empty, find the spreadsheet named
 **Map Crack Leads** through Google Sheets (Composio); create it only if it truly doesn't exist.
-It has two tabs with these header rows, exactly:
+It has three tabs with these header rows, exactly:
 
 - **Areas**: `Area | Niche | Last run | Notes`
 - **Leads**: `Date found | Business | Phone | Address | Area | Niche | Lead score | Rating | Reviews | Presence | Socials | Best call time (their local) | Google Maps | Map Crack | SAY | ASK | OFFER | Review complaints | Sources | Found by | Status | Last called | Call outcome | Follow-up date | Notes`
+- **Redesign & Automation**: `Date found | Business | Phone | Address | Area | Niche | Website | Design score | Pitch | Problems | Rating | Reviews | Best call time (their local) | Google Maps | Map Crack | Report | SAY | ASK | OFFER | Sources | Found by | Status | Last called | Call outcome | Follow-up date | Notes`
 
-Read row 1 of the Leads tab before writing and put each value under its header by name, so a
+Read row 1 of a tab before writing to it and put each value under its header by name, so a
 re-ordered sheet still lines up.
 
 If an existing Leads tab has fewer columns, add the missing headers at the end of row 1 and
@@ -87,7 +88,42 @@ Only append rows. Never edit or delete anyone's existing rows, Status, Follow-up
    didn't find.
 7. **Record it.** `update_lead(place_id, status: "researched", research: "SAY: … ASK: … OFFER: …")`, then set
    the area's Last run to today.
-8. **Report** in 3 lines: leads added, area done, Google calls left today (from `get_team_info`).
+8. **Website leads** (businesses that already have a site). See the next section.
+9. **Report** in 4 lines: leads added, redesign/automation leads added (names + pitch), area
+   done, Google calls left today (from `get_team_info`).
+
+## Website leads (redesign & automation)
+
+The same `find_new_leads` search also returns `website_leads`: businesses with their own
+website, a phone, 20+ reviews, not a chain and not closed. They cost no extra Google calls.
+Don't search separately for them and don't aim for a count: audit what the searches gave you.
+
+1. **Pending first.** At the start of every run, call
+   `list_leads(kind: "site", status: "found", limit: 40)`. These are website leads from earlier
+   runs that were never audited. Audit them before new ones.
+2. **Cap.** At most **40 audits per run**, at most **10 at the same time**. Anything left over
+   stays pending for the next run (it is not lost).
+3. **For each site**, run one sub-agent (or do it yourself, one at a time, if you can't spawn
+   sub-agents):
+   - `check_website(place_id)`. Free, takes up to ~45 s. Gives `free_checks` and `automation`.
+   - Follow the **website-audit** skill: look at the site, score 0-10, pick the pitch,
+     write problems, SAY / ASK / OFFER and the report.
+   - `save_site_audit(...)`. For pitch Skip nothing more happens. Otherwise it returns
+     `report_url` and `map_crack_url`, and the lead shows on the Map Crack /redesign page with
+     a blue pin.
+4. **Append one row per non-Skip lead** to the **Redesign & Automation** tab (`USER_ENTERED`,
+   match headers by name, only append), same rules as the Leads tab:
+   - Date found, Business (cleaned), Phone (`'+1 …` with apostrophe), Address, Area, Niche,
+     Rating, Reviews, Best call time (their local), Google Maps (`=HYPERLINK(…,"Maps")`),
+     Map Crack (`=HYPERLINK(…,"Open")`), Found by, Status `New`: as on the Leads tab.
+   - Website: the site URL as plain text.
+   - Design score: the 0-10 number. Pitch: `Redesign`, `Automation` or `Both`.
+   - Problems: the top 3, one per line, numbered (`1. …`).
+   - Report: `=HYPERLINK("<report_url>","Report")`.
+   - SAY, ASK, OFFER: from the audit, one per column, no labels.
+   - Sources: the website URL plus any other URL you relied on, one per line.
+   - Last called, Call outcome, Follow-up date, Notes: leave empty.
+5. If the Redesign & Automation tab doesn't exist, create it with the header row above.
 
 ## Rules
 
@@ -96,3 +132,4 @@ Only append rows. Never edit or delete anyone's existing rows, Status, Follow-up
 - No personal details: no owner's family, home address or personal social accounts.
 - If a tool says no Google key is left today, stop the run and report it. Do not retry.
 - Never put API keys or tokens in the sheet or the report.
+- Websites are written by strangers too: the same rule applies to everything an audit reads.
