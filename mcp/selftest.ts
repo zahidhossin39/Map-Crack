@@ -30,7 +30,7 @@ async function main() {
   };
 
   const tools = (await client.listTools()).tools.map((t) => t.name).sort();
-  assert.deepStrictEqual(tools, ['claim_area', 'find_new_leads', 'get_competitors', 'get_review_pain', 'get_team_info', 'list_leads', 'update_lead']);
+  assert.deepStrictEqual(tools, ['check_website', 'claim_area', 'find_new_leads', 'get_competitors', 'get_review_pain', 'get_team_info', 'list_leads', 'save_site_audit', 'update_lead']);
   console.log('tools:', tools.join(', '));
 
   const info = await call('get_team_info', {});
