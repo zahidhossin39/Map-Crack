@@ -16,6 +16,7 @@ interface CustomMarkerLayerProps {
   exploreMode?: ExploreMode;
   leadStatuses?: Record<string, LeadStatus>;
   selectedIds?: Record<string, true>;
+  redesignIds?: Record<string, true>; // audited website leads: blue ring
   onToggleSelect?: (business: BusinessPlace) => void;
   speedScores?: Record<string, number>;
   checkingIds?: Record<string, true>;
@@ -39,6 +40,7 @@ export const CustomMarkerLayer: React.FC<CustomMarkerLayerProps> = ({
   exploreMode = 'pin',
   leadStatuses,
   selectedIds,
+  redesignIds,
   onToggleSelect,
   speedScores,
   checkingIds,
@@ -77,6 +79,7 @@ export const CustomMarkerLayer: React.FC<CustomMarkerLayerProps> = ({
         const isSelected = selectedBusinessId === business.id;
         const isHovered = hoveredBusinessId === business.id;
         const isStarred = selectedIds?.[business.id] === true;
+        const isRedesign = !isStarred && redesignIds?.[business.id] === true;
         const speedScore = speedScores?.[business.id];
         const isChecking = checkingIds?.[business.id] === true;
 
@@ -100,7 +103,7 @@ export const CustomMarkerLayer: React.FC<CustomMarkerLayerProps> = ({
                 ? 10000
                 : isSelected
                 ? 999
-                : isStarred
+                : isStarred || isRedesign
                 ? 800
                 : visual.category === 'client'
                 ? 700
@@ -133,6 +136,10 @@ export const CustomMarkerLayer: React.FC<CustomMarkerLayerProps> = ({
                 {/* Your saved leads: purple ring, visible without hovering. */}
                 {isStarred && (
                   <div className="absolute -inset-[5px] rounded-full ring-[3px] ring-purple-500 shadow-[0_0_10px_rgba(168,85,247,0.85)]" />
+                )}
+                {/* Redesign / automation leads (they have a website): blue ring. */}
+                {isRedesign && (
+                  <div className="absolute -inset-[5px] rounded-full ring-[3px] ring-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.85)]" />
                 )}
                 <div
                   className={`relative w-6 h-6 rounded-full bg-gradient-to-br ${visual.pinGradient} border-2 border-white shadow-md flex items-center justify-center`}
@@ -312,7 +319,7 @@ export const CustomMarkerLayer: React.FC<CustomMarkerLayerProps> = ({
               {/* Business Name Label with Rating Dots */}
               <div className="mt-1 flex flex-col items-center pointer-events-none max-w-[200px] text-center transition-all duration-150">
                 <div
-                  className={`px-2 py-0.5 rounded-full backdrop-blur-md shadow-md flex items-center justify-center gap-1.5 border transition-all bg-slate-950/85 group-hover:bg-slate-950 ${isStarred ? 'border-purple-500 ring-1 ring-purple-500/60' : visual.labelBorderClass}`}
+                  className={`px-2 py-0.5 rounded-full backdrop-blur-md shadow-md flex items-center justify-center gap-1.5 border transition-all bg-slate-950/85 group-hover:bg-slate-950 ${isStarred ? 'border-purple-500 ring-1 ring-purple-500/60' : isRedesign ? 'border-blue-500 ring-1 ring-blue-500/60' : visual.labelBorderClass}`}
                 >
                   {isStarred && <span className="text-purple-400 text-[10px] leading-none">★</span>}
                   <span className="text-[11px] font-bold leading-tight whitespace-normal break-words text-center">

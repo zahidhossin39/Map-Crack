@@ -28,6 +28,7 @@ import {
   fetchPlaceDetails,
   SAVED_LEADS_CHANGED_EVENT,
 } from '@/lib/savedLeads';
+import { getAllRedesignLeads, REDESIGN_CHANGED_EVENT, type RedesignLead } from '@/lib/redesignLeads';
 import { filterBusinesses } from '@/lib/businessFilters';
 import type { Xray } from '@/lib/xray';
 import type { ReviewIntel } from '@/lib/reviewIntel';
@@ -104,6 +105,7 @@ const MapController: React.FC<MapContainerProps> = ({
   const [leadStatuses, setLeadStatuses] = useState<Record<string, any>>({});
   const [selectedIds, setSelectedIds] = useState<Record<string, true>>({});
   const [savedLeads, setSavedLeads] = useState<Record<string, SavedLead>>({});
+  const [redesignLeads, setRedesignLeads] = useState<Record<string, RedesignLead>>({});
   const savedLeadsRef = useRef(savedLeads);
   savedLeadsRef.current = savedLeads;
   // Ids already rechecked (or tried) this session, so a failed lookup isn't retried every pan.
@@ -155,6 +157,18 @@ const MapController: React.FC<MapContainerProps> = ({
     window.addEventListener('storage', sync);
     return () => {
       window.removeEventListener(SELECTION_CHANGED_EVENT, sync);
+      window.removeEventListener('storage', sync);
+    };
+  }, []);
+
+  // Website leads an agent audited (redesign/automation): blue pins, always shown.
+  useEffect(() => {
+    const sync = () => setRedesignLeads(getAllRedesignLeads());
+    sync();
+    window.addEventListener(REDESIGN_CHANGED_EVENT, sync);
+    window.addEventListener('storage', sync);
+    return () => {
+      window.removeEventListener(REDESIGN_CHANGED_EVENT, sync);
       window.removeEventListener('storage', sync);
     };
   }, []);
@@ -610,8 +624,15 @@ const MapController: React.FC<MapContainerProps> = ({
     const saved = Object.values(savedLeads)
       .filter((l) => selectedIds[l.business.id] && !shown.has(l.business.id))
       .map((l) => l.business);
-    return [...filteredResults, ...saved];
-  }, [filteredResults, savedLeads, selectedIds]);
+    saved.forEach((b) => shown.add(b.id));
+    const redesign = Object.values(redesignLeads).filter((l) => l.business?.location && !shown.has(l.business.id)).map((l) => l.business);
+    return [...filteredResults, ...saved, ...redesign];
+  }, [filteredResults, savedLeads, selectedIds, redesignLeads]);
+
+  const redesignIds = useMemo(
+    () => Object.fromEntries(Object.keys(redesignLeads).map((id) => [id, true as const])),
+    [redesignLeads]
+  );
 
   return (
     <>
@@ -636,6 +657,7 @@ const MapController: React.FC<MapContainerProps> = ({
         exploreMode={exploreMode}
         leadStatuses={leadStatuses}
         selectedIds={selectedIds}
+        redesignIds={redesignIds}
         onToggleSelect={(business) => toggleSelected(business)}
         speedScores={speedScores}
         checkingIds={checkingIds}

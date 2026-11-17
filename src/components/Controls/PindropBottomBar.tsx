@@ -7,6 +7,7 @@ import {
   Search,
   Table,
   Users,
+  PenTool,
   User,
   Sun,
   Moon,
@@ -85,6 +86,15 @@ export const PindropBottomBar: React.FC<PindropBottomBarProps> = ({
           >
             <Table className="w-4 h-4" />
             <span className="text-[11px] mt-0.5">Sheet</span>
+          </Link>
+
+          {/* Redesign: audited website leads (redesign / automation). */}
+          <Link
+            href="/redesign"
+            className="flex flex-col items-center px-4 py-1 rounded-full transition-all text-slate-500 hover:text-slate-800 font-medium"
+          >
+            <PenTool className="w-4 h-4" />
+            <span className="text-[11px] mt-0.5">Redesign</span>
           </Link>
 
           {/* Team: keys, teammates and the agent skill. */}

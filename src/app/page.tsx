@@ -11,6 +11,7 @@ import { isLead } from '@/lib/pindropUtils';
 import { getAllSelectedIds, SELECTION_CHANGED_EVENT } from '@/lib/selection';
 import { loadFromCloud } from '@/lib/cloudSync';
 import { getAllSavedLeads } from '@/lib/savedLeads';
+import { getAllRedesignLeads } from '@/lib/redesignLeads';
 import { Xray, getAllXrays, XRAY_CHANGED_EVENT } from '@/lib/xray';
 import { ReviewIntel, getAllReviewIntel, REVIEWS_CHANGED_EVENT } from '@/lib/reviewIntel';
 import { PindropTopBar } from '@/components/Search/PindropTopBar';
@@ -98,7 +99,7 @@ export default function Home() {
     // open its details. Runs after the cloud load so a lead saved on another device works too.
     loadFromCloud().finally(() => {
       const id = new URLSearchParams(window.location.search).get('focus');
-      const lead = id ? getAllSavedLeads()[id] : undefined;
+      const lead = id ? getAllSavedLeads()[id] || getAllRedesignLeads()[id] : undefined;
       if (!lead) return;
       const b = lead.business;
       setCenterPin({ lat: b.location.lat, lng: b.location.lng, address: b.name });
