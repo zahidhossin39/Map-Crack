@@ -31,7 +31,11 @@ const TABLES = [
 ];
 
 // Columns added after the first release. ALTER fails when the column exists, which is fine.
-const COLUMNS = ["ALTER TABLE mcp_leads ADD COLUMN found_by TEXT NOT NULL DEFAULT ''"];
+const COLUMNS = [
+  "ALTER TABLE mcp_leads ADD COLUMN found_by TEXT NOT NULL DEFAULT ''",
+  "ALTER TABLE mcp_leads ADD COLUMN kind TEXT NOT NULL DEFAULT 'nosite'",
+  "ALTER TABLE mcp_leads ADD COLUMN audit TEXT NOT NULL DEFAULT ''",
+];
 
 async function migrate(c: Client) {
   await c.batch(TABLES, 'write');

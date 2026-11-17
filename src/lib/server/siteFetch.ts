@@ -1,0 +1,111 @@
+// Fetches a business homepage safely (blocks private addresses, follows redirects by hand)
+// and reads it for sales signals. Used by the website X-ray route and the agent's check_website tool.
+import { lookup as dnsLookup, type LookupAddress } from 'node:dns';
+import { isIP } from 'node:net';
+import http from 'node:http';
+import https from 'node:https';
+import zlib from 'node:zlib';
+import type { Readable } from 'node:stream';
+import { detectSignals, DEAD_XRAY, type Xray } from '@/lib/xray';
+
+const MAX_BYTES = 1_500_000;
+
+// The server fetches a URL the client chose, so block anything that resolves to our own network (SSRF).
+function isPrivate(ip: string): boolean {
+  if (isIP(ip) === 6) {
+    const v = ip.toLowerCase();
+    if (v.startsWith('::ffff:')) return isPrivate(v.slice(7));
+    return v === '::1' || v === '::' || v.startsWith('fc') || v.startsWith('fd') || v.startsWith('fe80');
+  }
+  const [a, b] = ip.split('.').map(Number);
+  return a === 10 || a === 127 || a === 0 || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) ||
+    (a === 192 && b === 168) || (a === 100 && b >= 64 && b <= 127) || a >= 224;
+}
+
+export class Blocked extends Error {}
+
+// Checks the address the socket actually connects to, so DNS can't answer "public" for the
+// check and "127.0.0.1" for the request (DNS rebinding).
+const safeLookup: typeof dnsLookup = ((host: string, options: any, cb: any) => {
+  dnsLookup(host, options, (err, address, family) => {
+    if (err) return cb(err);
+    const list: LookupAddress[] = Array.isArray(address) ? address : [{ address, family: family! }];
+    if (list.some((a) => isPrivate(a.address))) return cb(new Blocked('private address'));
+    cb(null, address, family);
+  });
+}) as typeof dnsLookup;
+
+interface Page {
+  status: number;
+  location: string | null;
+  html: string;
+}
+
+function get(url: URL): Promise<Page> {
+  return new Promise((resolve, reject) => {
+    const lib = url.protocol === 'https:' ? https : http;
+    const req = lib.request(
+      url,
+      {
+        lookup: safeLookup,
+        timeout: 12000,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (compatible; MapCrackXray/1.0)',
+          Accept: 'text/html',
+          'Accept-Encoding': 'gzip, deflate, br',
+        },
+      },
+      (res) => {
+        const status = res.statusCode || 0;
+        const location = status >= 300 && status < 400 ? res.headers.location || null : null;
+        if (location || status >= 400) {
+          res.resume();
+          return resolve({ status, location, html: '' });
+        }
+        const enc = res.headers['content-encoding'];
+        const body: Readable =
+          enc === 'br' ? res.pipe(zlib.createBrotliDecompress()) :
+          enc === 'gzip' || enc === 'deflate' ? res.pipe(zlib.createUnzip()) : res;
+        let html = '';
+        body.setEncoding('utf8');
+        body.on('data', (chunk: string) => {
+          html += chunk;
+          if (html.length >= MAX_BYTES) body.destroy();
+        });
+        body.on('close', () => resolve({ status, location: null, html }));
+        body.on('error', () => resolve({ status, location: null, html }));
+      }
+    );
+    req.on('timeout', () => req.destroy(new Error('timeout')));
+    req.on('error', reject);
+    req.end();
+  });
+}
+
+function checkUrl(url: URL) {
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') throw new Blocked('bad protocol');
+  // IP literals skip DNS, so safeLookup never sees them.
+  const host = url.hostname.replace(/^\[|\]$/g, '');
+  if (isIP(host) && isPrivate(host)) throw new Blocked('private address');
+}
+
+/** Fetch a site and return its signals. Throws Blocked for private/bad URLs; dead sites give DEAD_XRAY. */
+export async function xraySite(raw: string): Promise<Xray & { finalUrl: string }> {
+  let url = new URL(/^https?:\/\//i.test(raw) ? raw : `https://${raw}`);
+  try {
+    for (let hop = 0; hop < 5; hop++) {
+      checkUrl(url);
+      const page = await get(url);
+      if (page.location) {
+        url = new URL(page.location, url);
+        continue;
+      }
+      if (page.status >= 400) return { ...DEAD_XRAY, finalUrl: url.toString() };
+      return { ...detectSignals(page.html, url.toString()), finalUrl: url.toString() };
+    }
+    return { ...DEAD_XRAY, finalUrl: url.toString() };
+  } catch (e) {
+    if (e instanceof Blocked) throw e;
+    return { ...DEAD_XRAY, finalUrl: url.toString() }; // DNS failure, refused, timeout, bad TLS
+  }
+}

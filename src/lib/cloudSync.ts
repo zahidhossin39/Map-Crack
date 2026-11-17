@@ -10,6 +10,7 @@ export const SYNCED_KEYS = [
   'pindrop_review_intel',
   'pindrop_speed_scores',
   'pindrop_saved_leads',
+  'pindrop_redesign_leads',
 ];
 
 type Store = Record<string, unknown>;

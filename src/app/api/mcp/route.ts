@@ -9,7 +9,7 @@ import { createMcpServer } from '@/lib/mcp/tools';
 import { memberForToken } from '@/lib/server/team';
 import { hasDb } from '@/lib/server/db';
 
-export const maxDuration = 60; // find_new_leads can make 3 Google calls in a row
+export const maxDuration = 120; // check_website can wait ~45 s for Google's speed test
 
 async function handle(req: NextRequest) {
   if (!hasDb()) return NextResponse.json({ error: 'Turso is not configured.' }, { status: 503 });

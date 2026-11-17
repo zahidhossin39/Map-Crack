@@ -10,6 +10,11 @@ import type { BusinessPlace } from '@/types/business';
 import { getDb } from '@/lib/server/db';
 import { googlePlaces, poolStatus } from '@/lib/server/googleKeys';
 import { patchStore } from '@/lib/server/store';
+import { xraySite } from '@/lib/server/siteFetch';
+import { nicheTier } from '@/lib/leadScore';
+
+/** Website businesses below this many Google reviews aren't worth an audit. */
+export const SITE_MIN_REVIEWS = 20;
 
 export const STATUSES = ['found', 'researched', 'contacted', 'talking', 'client', 'nogo'] as const;
 export type Status = (typeof STATUSES)[number];
@@ -83,6 +88,7 @@ export async function findNewLeads(opts: {
   const fieldMask = [...PLACE_FIELDS.filter((f) => f !== 'photos').map((f) => `places.${f}`), 'nextPageToken'].join(',');
   const textQuery = `${opts.niche} in ${opts.area}`;
   const found: BusinessPlace[] = [];
+  const sites: BusinessPlace[] = []; // real website: kept for redesign/automation audits
   let pageToken: string | undefined;
   let pages = 0;
   let scanned = 0;
@@ -110,10 +116,14 @@ export async function findNewLeads(opts: {
     }
 
     for (const b of places) {
-      if (found.length >= opts.limit) break;
-      if (seen.has(b.id) || found.some((f) => f.id === b.id)) continue;
-      if (opts.noWebsiteOnly && !isLead(b)) continue;
+      if (seen.has(b.id) || found.some((f) => f.id === b.id) || sites.some((f) => f.id === b.id)) continue;
       if (scoreLead(b).score === 0) continue; // chains and closed businesses
+      if (opts.noWebsiteOnly && !isLead(b)) {
+        // Already paid for: keep real-website businesses worth auditing instead of dropping them.
+        if (b.nationalPhoneNumber && (b.userRatingCount ?? 0) >= SITE_MIN_REVIEWS) sites.push(b);
+        continue;
+      }
+      if (found.length >= opts.limit) continue;
       found.push(b);
     }
 
@@ -135,10 +145,22 @@ export async function findNewLeads(opts: {
     // Star them on the website too: gold pin, a row on /sheet, and the 7-day recheck.
     await starOnWebsite(found, ctx, `${opts.niche} in ${opts.area}`);
   }
+  if (sites.length) {
+    await c.batch(
+      sites.map((b) => ({
+        sql: `INSERT OR IGNORE INTO mcp_leads (place_id, name, area, niche, status, business, found_at, updated_at, found_by, kind)
+              VALUES (?, ?, ?, ?, 'found', ?, ?, ?, ?, 'site')`,
+        args: [b.id, b.name, opts.area, opts.niche, JSON.stringify(slim(b)), now, now, ctx.who],
+      })),
+      'write'
+    );
+  }
 
   return {
     query: textQuery,
     new_leads: found.map((b) => leadView(b, ctx)).sort((a, b) => b.lead_score - a.lead_score),
+    website_leads: sites.map((b) => ({ ...leadView(b, ctx), website: b.websiteURI })),
+    ...(sites.length ? { website_leads_note: `Businesses with their own website (phone + ${SITE_MIN_REVIEWS}+ reviews). For each: check_website, a design audit (website-audit skill), then save_site_audit. They never come back.` } : {}),
     scanned,
     google_calls: pages,
     ...(exhausted && found.length < opts.limit
@@ -236,12 +258,13 @@ export async function updateLead(placeId: string, patch: { status?: Status; note
   return { updated: placeId, ...patch };
 }
 
-export async function listLeads(opts: { status?: Status; area?: string; limit: number }, ctx: Ctx) {
+export async function listLeads(opts: { status?: Status; area?: string; kind?: 'nosite' | 'site'; limit: number }, ctx: Ctx) {
   const c = await getDb();
   const where: string[] = [];
   const args: (string | number)[] = [];
   if (opts.status) { where.push('status = ?'); args.push(opts.status); }
   if (opts.area) { where.push('area LIKE ?'); args.push(`%${opts.area}%`); }
+  if (opts.kind) { where.push('kind = ?'); args.push(opts.kind); }
   args.push(opts.limit);
   const r = await c.execute({
     sql: `SELECT * FROM mcp_leads ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY found_at DESC LIMIT ?`,
@@ -256,8 +279,11 @@ export async function listLeads(opts: { status?: Status; area?: string; limit: n
         phone: b.nationalPhoneNumber || null,
         area: row.area,
         niche: row.niche,
+        kind: row.kind === 'site' ? 'website (redesign/automation)' : 'no website',
         status: row.status,
         presence: presenceOf(b),
+        website: b.websiteURI || null,
+        review_count: b.userRatingCount ?? 0,
         lead_score: scoreLead(b).score,
         google_maps_url: b.googleMapsURI || null,
         map_crack_url: mapCrackUrl(ctx.siteUrl, String(row.place_id)),
@@ -323,4 +349,119 @@ export async function forgetLeads(placeIds: string[]) {
 export async function releaseArea(area: string, niche: string) {
   const c = await getDb();
   await c.execute({ sql: 'DELETE FROM area_claims WHERE area_key = ?', args: [`${area.trim().toLowerCase()}|${niche.trim().toLowerCase()}`] });
+}
+
+// --- website leads: free checks + saving the audit ---
+
+/** Free checks on a business website (no Google Places calls): homepage scan + mobile speed. */
+export async function checkWebsite(placeId: string) {
+  const b = await loadBusiness(placeId);
+  const url = b.websiteURI?.trim();
+  if (!url) throw new Error(`${b.name} has no website on Google.`);
+  const [scan, speed] = await Promise.all([xraySite(url), mobileSpeed(url)]);
+  const year = new Date().getFullYear();
+  const failed: string[] = [];
+  if (scan.dead) failed.push('Site is down, errors, or parked');
+  if (!scan.dead && !scan.https) failed.push('No HTTPS (browsers show "Not secure")');
+  if (!scan.dead && !scan.mobileViewport) failed.push('Not set up for phones (no mobile viewport)');
+  if (speed !== null && speed < 50) failed.push(`Slow on phones: Google speed score ${speed}/100`);
+  if (scan.copyrightYear && year - scan.copyrightYear >= 3) failed.push(`Copyright says ${scan.copyrightYear}: looks unmaintained`);
+  if (!scan.dead && !scan.telLink) failed.push('Phone number is not tap-to-call');
+  const tier = nicheTier(b);
+  const phoneHeavy = tier === 'trades' || tier === 'auto';
+  const busy = (b.userRatingCount ?? 0) >= 50;
+  const gaps: string[] = [];
+  if (!scan.booking) gaps.push('No online booking');
+  if (!scan.chat) gaps.push('No chat or AI receptionist');
+  return {
+    business: b.name,
+    website: scan.finalUrl,
+    free_checks: {
+      failed,
+      mobile_speed: speed,
+      https: scan.https,
+      mobile_ready: scan.mobileViewport,
+      copyright_year: scan.copyrightYear,
+      built_with: scan.builder,
+      booking: scan.booking,
+      chat: scan.chat,
+      tap_to_call: scan.telLink,
+      ad_pixels: scan.adPixels,
+      socials_on_site: scan.socials,
+      emails_on_site: scan.emails,
+    },
+    automation: { phone_heavy_niche: phoneHeavy, busy, gaps, fit: phoneHeavy && busy && gaps.length > 0 },
+    note: 'Every failed check is a fact you can say on a call. Next: the design audit (website-audit skill), then save_site_audit.',
+  };
+}
+
+async function mobileSpeed(url: string): Promise<number | null> {
+  const key = (process.env.GOOGLE_PLACES_SERVER_KEY || process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '').trim();
+  const call = async (withKey: boolean) => {
+    const res = await fetch(
+      `https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(url)}&strategy=mobile&category=performance${withKey && key ? `&key=${key}` : ''}`,
+      { signal: AbortSignal.timeout(45000) }
+    );
+    if (!res.ok) return null;
+    const score = (await res.json())?.lighthouseResult?.categories?.performance?.score;
+    return typeof score === 'number' ? Math.round(score * 100) : null;
+  };
+  try {
+    // The key may not have PageSpeed enabled; the keyless call still works at low volume.
+    return (await call(true)) ?? (await call(false));
+  } catch {
+    return null;
+  }
+}
+
+export const PITCHES = ['Redesign', 'Automation', 'Both', 'Skip'] as const;
+
+export async function saveSiteAudit(
+  input: {
+    place_id: string;
+    design_score: number;
+    problems: string[];
+    pitch: (typeof PITCHES)[number];
+    say: string;
+    ask: string;
+    offer: string;
+    report: string;
+    checks?: unknown;
+  },
+  ctx: Ctx
+) {
+  const c = await getDb();
+  const r = await c.execute({ sql: 'SELECT business, found_by FROM mcp_leads WHERE place_id = ?', args: [input.place_id] });
+  if (!r.rows[0]) throw new Error(`No saved lead with place_id ${input.place_id}. Website leads are saved by find_new_leads.`);
+  const b = JSON.parse(String(r.rows[0].business)) as BusinessPlace;
+  const now = Date.now();
+  const audit = {
+    design_score: input.design_score,
+    problems: input.problems.slice(0, 3),
+    pitch: input.pitch,
+    say: input.say,
+    ask: input.ask,
+    offer: input.offer,
+    report: input.report,
+    checks: input.checks ?? null,
+    audited_at: now,
+    audited_by: ctx.who,
+  };
+  await c.execute({
+    sql: 'UPDATE mcp_leads SET status = ?, research = ?, audit = ?, updated_at = ? WHERE place_id = ?',
+    args: [input.pitch === 'Skip' ? 'nogo' : 'researched', `${input.pitch}: ${input.say}`, JSON.stringify(audit), now, input.place_id],
+  });
+  if (input.pitch === 'Skip') {
+    return { saved: input.place_id, added: false, note: 'Good site and no gaps: skipped. Do not add it to the sheet.' };
+  }
+  await patchStore('pindrop_redesign_leads', {
+    set: { [b.id]: { business: b, audit, foundBy: String(r.rows[0].found_by || ctx.who), savedAt: now, notes: '' } },
+  });
+  const site = ctx.siteUrl.replace(/\/$/, '');
+  return {
+    saved: input.place_id,
+    added: true,
+    report_url: `${site}/redesign?lead=${encodeURIComponent(b.id)}`,
+    map_crack_url: mapCrackUrl(ctx.siteUrl, b.id),
+  };
 }
